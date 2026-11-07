@@ -1,0 +1,35 @@
+name: lotis-official-sync
+# Official results only. LOTIS puts a CAPTCHA in front of every PDF, so a robot cannot fetch them.
+# Steps: ingest any PDFs committed to ./pdfs, then save today's result from public sources (unofficial). You get a Telegram alert ONLY if that fails validation after 4:45 PM IST.
+on:
+  workflow_dispatch:
+  push:
+    paths: ["pdfs/**.pdf"]
+  schedule:
+    # 4:00–5:30 PM IST = 10:30–12:00 UTC, every 5 min; plus a 6:30 PM IST (13:00 UTC) backup. GitHub cron is best-effort and may run late.
+    - cron: "30,35,40,45,50,55 10 * * *"
+    - cron: "*/5 11 * * *"
+    - cron: "0 12 * * *"
+    - cron: "0 13 * * *"
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_ADMIN_CHAT_ID: ${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}
+      NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${{ secrets.NEXT_PUBLIC_VAPID_PUBLIC_KEY }}
+      VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+      VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+      TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: Ingest committed official PDFs (strictly validated)
+        run: |
+          if ls pdfs/*.pdf >/dev/null 2>&1; then npm run ingest -- --dir=./pdfs --limit=30; else echo "no PDFs in ./pdfs"; fi
+      - name: Hands-free path (after 4:25 PM IST); alerts you on failure after 4:45 PM IST
+        run: npm run consensus
