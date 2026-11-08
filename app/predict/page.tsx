@@ -1,9 +1,13 @@
 "use client";
+import Link from "next/link";
 import { useMemo, useState } from "react";
+import { Store, Trophy, ArrowRight } from "lucide-react";
 import { useApp } from "@/components/Providers";
 import { smartPicks, hotPicks } from "@/lib/analytics";
 import { isoDate, nowIST, lotteryForWeekday } from "@/lib/schedule";
 import { analyse, generate, poolStats, sumDistribution, GenOptions } from "@/lib/generator";
+import { SumCheck } from "@/components/SumCheck";
+import { Digits } from "@/components/Digits";
 
 export default function PredictPage() {
   const { draws, t } = useApp();
@@ -24,12 +28,34 @@ export default function PredictPage() {
   const stats = useMemo(() => poolStats(opts), [sumMin, sumMax, bal, rep]); // eslint-disable-line
   const dist = useMemo(sumDistribution, []);
   const maxPct = Math.max(...dist.map((d) => d.pct));
-  const [check, setCheck] = useState(""); const ca = /^\d{6}$/.test(check) ? analyse(check) : null;
   const toggleBal = (b: "3:3" | "4:2" | "2:4") => setBal((x) => (x.includes(b) ? x.filter((y) => y !== b) : [...x, b]));
 
   return (
     <>
       <p className="text-xs rounded-lg border border-amber-500 text-amber-600 dark:text-amber-300 p-2">{t("statDisclaimer")}</p>
+
+      {/* Stall Assistant Callout */}
+      <div className="rounded-2xl p-3.5 bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2.5">
+          <span className="grid place-items-center w-8 h-8 rounded-xl bg-emerald-500 text-white shrink-0">
+            <Store size={18} />
+          </span>
+          <div>
+            <div className="text-xs font-bold text-emerald-950 dark:text-emerald-200">
+              Standing at a Lottery Stall Counter?
+            </div>
+            <div className="text-[11px] muted">
+              Compare stall tickets & optimize books of 10 or 100 before buying
+            </div>
+          </div>
+        </div>
+        <Link
+          href="/stall"
+          className="chip !text-xs !font-bold !py-1 !px-2.5 !min-h-0 bg-emerald-600 text-white border-none shrink-0 flex items-center gap-1"
+        >
+          Check Stall <ArrowRight size={12} />
+        </Link>
+      </div>
       <section className="card space-y-3">
         <h2 className="font-bold">Smart Picks</h2>
         <p className="font-bold -mt-1" style={{ color: "var(--brand-d)" }}>For {resultOut ? "tomorrow's" : "today's"} draw: {next.name} · 3:00 PM</p>
@@ -54,7 +80,7 @@ export default function PredictPage() {
         </div>
         <p className="text-sm muted">Filters keep <b>{stats.pass.toLocaleString("en-IN")}</b> of 9,00,000 numbers ({stats.pct.toFixed(1)}%).</p>
         <button className="btn w-full" onClick={() => setOut(generate(opts))}>Generate</button>
-        <div className="flex flex-wrap gap-2">{out.map((n) => <span key={n} className="mono text-lg font-bold px-2 py-1 rounded-lg border border-[color:var(--line)]">{n} <span className="text-xs muted">Σ{analyse(n).sum}</span></span>)}</div>
+        <div className="space-y-2">{out.map((n) => <div key={n} className="flex items-center justify-between rounded-2xl border border-[color:var(--line)] px-3 py-2"><Digits ticket={n} /><span className="chip !min-h-0 !py-0.5 !text-xs">Σ{analyse(n).sum}</span></div>)}</div>
         <div>
           <div className="text-xs muted mb-1">Digit-sum distribution of all 6-digit numbers (peak ≈ 27–28)</div>
           <div className="flex items-end gap-px h-20">{dist.map((d) => <div key={d.sum} title={`Σ${d.sum}: ${d.pct.toFixed(2)}%`} style={{ height: `${(d.pct / maxPct) * 100}%`, background: d.sum >= sumMin && d.sum <= sumMax ? "var(--brand)" : "var(--line)" }} className="flex-1" />)}</div>
@@ -62,11 +88,7 @@ export default function PredictPage() {
         <p className="text-xs muted">Honest note: every 6-digit number is equally likely. These filters follow the most common number shapes; they don't raise your odds.</p>
       </section>
 
-      <section className="card space-y-2">
-        <h2 className="font-bold">Quick Sum Check</h2>
-        <input className="input mono text-lg" inputMode="numeric" maxLength={6} placeholder="6-digit number" value={check} onChange={(e) => setCheck(e.target.value.replace(/\D/g, ""))} />
-        {ca && <p className="text-sm">Sum <b>{ca.sum}</b> {ca.inSweetSpot ? "✅ in 25–30" : "— outside 25–30"} · Odd:Even {ca.odd}:{ca.even} · {ca.repeat ? "has repeated digit" : "all digits distinct"}</p>}
-      </section>
+      <SumCheck />
     </>
   );
 }

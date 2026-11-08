@@ -6,6 +6,13 @@ create table if not exists draws (
   date date not null,
   pdf_url text,
   verified boolean not null default false,
+  -- prizes JSONB structure:
+  -- Weekly Draws (BT, SS, etc.):
+  --   first, second, third, consolation: [{"ticket": "BR 399494", "district": "KANNUR"}]
+  --   fourth through ninth: ["0619", "1710", ...] (4-digit endings)
+  -- Bumper Draws (BR-*, TB-*, etc., e.g., Pooja Bumper BR-112):
+  --   first through fifth + consolation: [{"ticket": "JC 325526", "district": "KAYAMKULAM"}] (full Series + 6 digits + location)
+  --   sixth through ninth: ["0229", "0844", ...] (4-digit endings; up to 762 slots in Pooja Bumper)
   prizes jsonb not null,
   amounts jsonb,
   created_at timestamptz default now(),
@@ -17,6 +24,8 @@ begin new.updated_at = now(); return new; end; $$ language plpgsql;
 drop trigger if exists draws_touch on draws;
 create trigger draws_touch before update on draws for each row execute function touch_updated_at();
 create index if not exists draws_date_idx on draws (date desc);
+create index if not exists draws_code_idx on draws (code);
+create index if not exists draws_draw_no_idx on draws (draw_no);
 alter table draws enable row level security;
 create policy "public read" on draws for select using (true);
 -- if the table already exists: alter table draws add column if not exists updated_at timestamptz not null default now();

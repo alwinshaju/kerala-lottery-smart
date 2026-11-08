@@ -22,7 +22,12 @@ export const BUMPERS: LotteryDef[] = [
 
 export const ALL_LOTTERIES = [...WEEKLY, ...BUMPERS];
 
-export const lotteryByCode = (code: string) => ALL_LOTTERIES.find((l) => l.code === code);
+export const lotteryByCode = (code: string) => {
+  if (!code) return undefined;
+  const c = code.toUpperCase();
+  const base = c.replace(/-\d+$/, "");
+  return ALL_LOTTERIES.find((l) => l.code === c || l.code === base);
+};
 export const lotteryForWeekday = (d: number) => WEEKLY.find((l) => l.weekday === d)!;
 
 /** Current time in IST regardless of device time zone. */

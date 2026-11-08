@@ -74,9 +74,10 @@ async function today() {
   if (have?.length && (have[0].verified || have[0].source === "consensus")) return console.log(`Today's draw (${date}) is already stored (${have[0].source}). Nothing to do.`);
   const stored = !!have?.length;
   // Draw number comes from the LOTIS listing if present, otherwise from the newest stored draw of today's lottery + 1.
-  const { lotteryForWeekday } = await import("../lib/schedule");
-  const lot = lotteryForWeekday(now.getDay());
-  let drawNo = rows.find((r) => r.date === date)?.drawNo;
+  const { lotteryForWeekday, lotteryByCode } = await import("../lib/schedule");
+  const listingToday = rows.find((r) => r.date === date);
+  const lot = (listingToday?.code ? lotteryByCode(listingToday.code) : null) || lotteryForWeekday(now.getDay());
+  let drawNo = listingToday?.drawNo;
   if (!drawNo) {
     const { data: last } = await sb.from("draws").select("draw_no").eq("code", lot.code).order("date", { ascending: false }).limit(1);
     const n = last?.[0]?.draw_no?.match(/-(\d+)$/)?.[1];

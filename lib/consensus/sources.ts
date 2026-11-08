@@ -1,5 +1,5 @@
 import type { Draw } from "../types";
-import { WEEKLY, lotteryByCode } from "../schedule";
+import { ALL_LOTTERIES, lotteryByCode } from "../schedule";
 import { parseResultText } from "../scraper/lotisParser";
 
 /**
@@ -43,10 +43,12 @@ export const feedSource: Source = {
     for (const e of j.feed?.entry ?? []) {
       const title: string = e.title?.$t ?? "";
       const d = title.match(/(\d{2})[-./](\d{2})[-./](\d{4})/), c = title.match(/\b([A-Z]{2})[\s.\-]*(\d{1,4})\b/);
-      if (!d || !c || !WEEKLY.some((l) => l.code === c[1])) continue;
+      if (!d || !c || !ALL_LOTTERIES.some((l) => l.code === c[1])) continue;
       const w = wanted.find((x) => x.code === c[1] && x.drawNo === `${c[1]}-${c[2]}`);
       if (!w) continue;
-      const draw = parseResultText(htmlToText(e.content?.$t ?? ""), { code: w.code, name: lotteryByCode(w.code)!.name, drawNo: w.drawNo, date: w.date });
+      const lot = lotteryByCode(w.code);
+      if (!lot) continue;
+      const draw = parseResultText(htmlToText(e.content?.$t ?? ""), { code: w.code, name: lot.name, drawNo: w.drawNo, date: w.date });
       draw.verified = false;
       const cur = out.get(keyOf(w.code, w.date));
       if (!cur || count(draw) > count(cur)) out.set(keyOf(w.code, w.date), draw); // several posts per draw: keep the fullest
@@ -62,8 +64,9 @@ export const klNetSource: Source = {
     const out = new Map<string, Draw>();
     const lists = new Map<string, string>(); // code -> listing page html
     for (const w of wanted) {
-      const lot = lotteryByCode(w.code)!;
-      if (!lists.has(w.code)) lists.set(w.code, await get(`https://kerala-lottery.net/${lot.name.toLowerCase().replace(/[^a-z]+/g, "-")}-result/`));
+      const lot = lotteryByCode(w.code);
+      if (!lot) continue;
+      if (!lists.has(w.code)) lists.set(w.code, await get(`https://kerala-lottery.net/${lot.name.toLowerCase().replace(/[^a-z]+/g, "-")}-result/`).catch(() => ""));
       const html = lists.get(w.code)!;
       const i = html.indexOf(`<strong>${w.drawNo}</strong>`);
       const href = i >= 0 ? html.slice(i, i + 1500).match(/href="(https:\/\/kerala-lottery\.net\/\?id=\d+)/)?.[1] : undefined;
