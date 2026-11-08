@@ -10,6 +10,8 @@ const en = {
   feedNote: "Result from a public source · official PDF check pending",
   accept: "I understand", latest: "Latest result", schedule: "Weekly schedule", language: "മലയാളം",
   statDisclaimer: "Statistical projection only; not guaranteed. Every 6-digit number is equally likely to be drawn.",
+  bumper: "Bumper", poojaBumper: "Pooja Bumper 2026", countdown: "Countdown", netPayout: "Net Payout",
+  stall: "Stall Assistant",
 };
 const ml: typeof en = {
   appName: "കേരള ലോട്ടറി ഹബ്", home: "ഹോം", search: "തിരയൽ/സ്കാൻ", predict: "സ്മാർട്ട് പിക്ക്", vault: "എന്റെ വോൾട്ട്", analytics: "വിശകലനം", tools: "ടൂൾസ്",
@@ -22,6 +24,8 @@ const ml: typeof en = {
   feedNote: "പൊതു സ്രോതസ്സിൽ നിന്ന് · ഔദ്യോഗിക PDF കാത്തിരിക്കുന്നു",
   accept: "മനസ്സിലായി", latest: "ഏറ്റവും പുതിയ ഫലം", schedule: "പ്രതിവാര ഷെഡ്യൂൾ", language: "English",
   statDisclaimer: "സ്ഥിതിവിവര കണക്ക് മാത്രം; ഉറപ്പില്ല. ഏത് 6 അക്ക നമ്പറിനും തുല്യ സാധ്യതയാണ്.",
+  bumper: "ബമ്പർ", poojaBumper: "പൂജ ബമ്പർ 2026", countdown: "കൗണ്ട്ഡൗൺ", netPayout: "നികുതി കഴിഞ്ഞുള്ള തുക",
+  stall: "കടയിലെ ടിക്കറ്റ്",
 };
 export const dict = { en, ml };
 export type Key = keyof typeof en;

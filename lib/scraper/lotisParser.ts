@@ -1,6 +1,9 @@
 import * as cheerio from "cheerio";
 import type { Draw, TicketWin } from "../types";
 import { isoDate, lotteryByCode, nowIST } from "../schedule";
+import { isBumperDraw } from "../rowMap";
+
+export { isBumperDraw };
 
 export const LOTIS_URL = "https://www.lotteryagent.kerala.gov.in/result/public/";
 
@@ -34,13 +37,13 @@ export async function fetchListing(html?: string): Promise<ListingRow[]> {
     const tds = $(tr).find("td");
     if (tds.length < 3) return;
     const label = $(tds[1]).text().trim();
-    const m = label.match(/^(.*?)-\d{2}\/\d{2}\/\d{4}\s*\(([A-Z]+)-(\d+)\)/);
+    const m = label.match(/^(.*?)-\d{2}\/\d{2}\/\d{4}\s*\(([A-Z0-9]+)-(\d+)\)/i);
     const dm = $(tds[2]).text().trim().match(/(\d{2})-(\d{2})-(\d{4})/);
     if (!m || !dm) return;
     const a = $(tds[3]).find("a");
     const href = a.attr("href");
     rows.push({
-      name: m[1].replace(/-/g, " ").trim(), code: m[2], drawNo: `${m[2]}-${m[3]}`,
+      name: m[1].replace(/-/g, " ").trim(), code: m[2].toUpperCase(), drawNo: `${m[2].toUpperCase()}-${m[3]}`,
       date: `${dm[3]}-${dm[2]}-${dm[1]}`, itemId: a.attr("data-item-id"),
       pdfUrl: href && href !== "#" ? new URL(href, LOTIS_URL).toString() : undefined,
     });
@@ -62,7 +65,9 @@ function normalise(text: string) {
     .replace(/₹\s*[\d,]+\s*\/?\s*-?/g, " ")
     .replace(/\bADVERTISEMENT\b/g, " ")
     .replace(/\[[^\]]*\]/g, " ")
-    .replace(/\((?:Common|Remaining|Last|For|Drawn)[^)]*\)/gi, " ");
+    .replace(/\((?:Common|Remaining|Last|For|Drawn)[^)]*\)/gi, " ")
+    .replace(/\b\d{2}[/-]\d{2}[/-]\d{4}\b/g, " ") // strip dates so years are not treated as 4-digit winners
+    .replace(/The prize winners are advised[\s\S]*$/gi, " "); // strip bottom disclaimers
 }
 
 type K = "first" | "second" | "third" | "cons" | "fourth" | "fifth" | "sixth" | "seventh" | "eighth" | "ninth";
@@ -83,33 +88,63 @@ function sections(t: string): Partial<Record<K, string>> {
 
 /** Step 2: parse raw result text (PDF or public page text). Layouts vary; always spot-check. */
 export function parseResultText(text: string, meta: { code: string; name: string; drawNo: string; date: string; pdfUrl?: string }): Draw {
+  const isBumper = isBumperDraw(meta.code, meta.drawNo);
   const seg = sections(normalise(text));
+
   const withDistrict = (s = ""): TicketWin[] => {
-    const out: TicketWin[] = []; const re = /([A-Z]{2})\s?(\d{6})\s*\(([A-Z][A-Z\s]+)\)/g; let m: RegExpExecArray | null;
-    while ((m = re.exec(s))) out.push({ ticket: `${m[1]} ${m[2]}`, district: m[3].trim() });
+    const out: TicketWin[] = [];
+    const re = /([A-Z]{2})\s?(\d{6})(?:\s*\(([^)]+)\)|\s+([A-Z][A-Z\s]{2,}))?/g;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(s))) {
+      const loc = (m[3] || m[4] || "").trim();
+      out.push({ ticket: `${m[1]} ${m[2]}`, ...(loc ? { district: loc } : {}) });
+    }
     return out;
   };
+
   const plain = (s = ""): TicketWin[] => [...new Map([...s.matchAll(TICKET)].map((m) => [m[0], asWin(m)])).values()];
-  // 4-digit tiers: only the unbroken run of 4-digit tokens right after the header (stops before dates, notes, agent lines).
+
   const fours = (s = ""): string[] => {
     const out: string[] = [];
-    for (const tok of s.replace(/[|,]/g, " ").trim().split(/\s+/)) { if (/^\d{4}$/.test(tok)) out.push(tok); else if (tok === "-" || tok === "---" || tok === ":" || tok === "–") continue; else break; }
+    for (const tok of s.replace(/[|,]/g, " ").trim().split(/\s+/)) {
+      if (/^\d{4}$/.test(tok)) {
+        out.push(tok);
+      } else if (tok === "-" || tok === "---" || tok === ":" || tok === "–") {
+        continue;
+      } else if (!isBumper) {
+        break;
+      }
+    }
     return [...new Set(out)].sort();
   };
+
+  const parseFullOrPlain = (s = ""): TicketWin[] => {
+    const dist = withDistrict(s);
+    return dist.length > 0 ? dist : plain(s);
+  };
+
   return {
     id: `${meta.code}-${meta.date}`, code: meta.code, name: meta.name, drawNo: meta.drawNo, date: meta.date, pdfUrl: meta.pdfUrl,
     verified: true,
     prizes: {
-      first: withDistrict(seg.first), second: withDistrict(seg.second), third: withDistrict(seg.third),
+      first: parseFullOrPlain(seg.first),
+      second: parseFullOrPlain(seg.second),
+      third: parseFullOrPlain(seg.third),
       consolation: plain(seg.cons),
-      fourth: fours(seg.fourth), fifth: fours(seg.fifth), sixth: fours(seg.sixth), seventh: fours(seg.seventh), eighth: fours(seg.eighth), ninth: fours(seg.ninth),
+      fourth: isBumper ? parseFullOrPlain(seg.fourth) : fours(seg.fourth),
+      fifth: isBumper ? parseFullOrPlain(seg.fifth) : fours(seg.fifth),
+      sixth: fours(seg.sixth),
+      seventh: fours(seg.seventh),
+      eighth: fours(seg.eighth),
+      ninth: fours(seg.ninth),
     },
   };
 }
 
-/** Reads the PDF's own header: "BHAGYATHARA LOTTERY NO.BT-78th DRAW held on:- 02/11/2026,3:00 PM". */
+/** Reads the PDF's own header: "BHAGYATHARA LOTTERY NO.BT-78th DRAW held on:- 02/11/2026,3:00 PM" or "POOJA BUMPER LOTTERY NO. BR-112th DRAW held on:- 28/11/2026, 2:00 PM". */
 export function identifyPdf(text: string): { code: string; no: string; date: string } | null {
-  const m = text.match(/LOTTERY\s*NO\.?\s*([A-Z]{2})\s*[-–]?\s*(\d{1,5})\s*(?:st|nd|rd|th)?\s*DRAW\s*held\s*on\s*:?-?\s*(\d{2})\/(\d{2})\/(\d{4})/i);
+  const m = text.match(/(?:LOTTERY\s*NO\.?|BUMPER\s*LOTTERY\s*NO\.?)\s*([A-Z]{2})\s*[-–]?\s*(\d{1,5})\s*(?:st|nd|rd|th)?\s*DRAW\s*held\s*on\s*:?-?\s*(\d{2})\/(\d{2})\/(\d{4})/i)
+    || text.match(/([A-Z]{2})\s*[-–]\s*(\d{1,5})\s*(?:st|nd|rd|th)?\s*DRAW\s*held\s*on\s*:?-?\s*(\d{2})\/(\d{2})\/(\d{4})/i);
   return m ? { code: m[1].toUpperCase(), no: m[2], date: `${m[5]}-${m[4]}-${m[3]}` } : null;
 }
 
@@ -127,7 +162,7 @@ export async function parsePdfBuffer(buf: Buffer, meta: Parameters<typeof parseR
 
 const TICKET_RE = /^[A-Z]{2} \d{6}$/;
 const FOUR_RE = /^\d{4}$/;
-const DISTRICT_RE = /^[A-Z][A-Z .]{2,}$/;
+const DISTRICT_RE = /^[A-Z][A-Z .]{2,}$/i;
 
 /**
  * Strict gate: returns a list of problems; an empty list means the draw is safe to store.
@@ -135,19 +170,26 @@ const DISTRICT_RE = /^[A-Z][A-Z .]{2,}$/;
  */
 export function validateDraw(d: Draw, now = new Date()): string[] {
   const e: string[] = [];
+  const isBumper = isBumperDraw(d.code, d.drawNo);
   const lot = lotteryByCode(d.code);
-  if (!lot || lot.weekday == null) e.push(`unknown weekly lottery code "${d.code}"`);
+  if (!lot) e.push(`unknown lottery code "${d.code}"`);
+  else if (!isBumper && lot.weekday == null) e.push(`unknown weekly lottery code "${d.code}"`);
+
   if (!/^\d{4}-\d{2}-\d{2}$/.test(d.date)) e.push(`bad date "${d.date}"`);
   else {
     const dt = new Date(d.date + "T00:00:00");
     if (isNaN(+dt)) e.push("unreadable date");
     else {
-      if (lot?.weekday != null && dt.getDay() !== lot.weekday) e.push(`${d.code} is drawn on weekday ${lot.weekday}, but ${d.date} is weekday ${dt.getDay()}`);
+      if (!isBumper && lot?.weekday != null && dt.getDay() !== lot.weekday) {
+        e.push(`${d.code} is drawn on weekday ${lot.weekday}, but ${d.date} is weekday ${dt.getDay()}`);
+      }
       if (d.date > isoDate(nowIST(now))) e.push("draw date is in the future");
     }
   }
+
   if (d.id !== `${d.code}-${d.date}`) e.push("id does not match code and date");
-  if (!new RegExp(`^${d.code}-\\d{1,5}$`).test(d.drawNo)) e.push(`draw number "${d.drawNo}" should look like ${d.code}-76`);
+  const codePrefix = d.code.replace(/-\d+$/, "");
+  if (!new RegExp(`^(?:${codePrefix}|[A-Z]{2})-\\d{1,5}$`).test(d.drawNo)) e.push(`draw number "${d.drawNo}" should look like ${d.code}-76`);
 
   const p = d.prizes;
   const tickets = (tier: "first" | "second" | "third" | "consolation", min: number, max: number, needDistrict: boolean) => {
@@ -159,7 +201,10 @@ export function validateDraw(d: Draw, now = new Date()): string[] {
     }
     if (new Set(list.map((w) => w.ticket)).size !== list.length) e.push(`${tier}: duplicate tickets`);
   };
-  tickets("first", 1, 1, true); tickets("second", 1, 1, true); tickets("third", 1, 12, true); tickets("consolation", 1, 30, false);
+  tickets("first", 1, 1, true);
+  tickets("second", 1, isBumper ? 10 : 1, isBumper ? false : true);
+  tickets("third", 1, isBumper ? 20 : 12, isBumper ? false : true);
+  tickets("consolation", 1, 30, false);
 
   // Integrity check: consolation tickets are the 1st-prize number in the other series.
   if (p.first[0] && p.consolation.length) {
@@ -169,14 +214,46 @@ export function validateDraw(d: Draw, now = new Date()): string[] {
     if (series.size !== p.consolation.length + 1) e.push("consolation series are duplicated or overlap the 1st-prize series");
   }
 
-  const fours = (tier: "fourth" | "fifth" | "sixth" | "seventh" | "eighth" | "ninth", required: boolean) => {
+  if (isBumper) {
+    // In Bumper draws: 4th and 5th prizes use full ticket numbers (Series + 6 digits + optional Location)
+    const checkBumperFullTicketTier = (tier: "fourth" | "fifth", min = 1, max = 50) => {
+      const list = p[tier];
+      if (list.length < min || list.length > max) e.push(`${tier}: expected ${min}–${max} ticket(s), found ${list.length}`);
+      for (const item of list) {
+        const ticket = typeof item === "string" ? item : item?.ticket;
+        if (!ticket || !TICKET_RE.test(ticket)) e.push(`${tier}: invalid ticket "${ticket}"`);
+      }
+    };
+    checkBumperFullTicketTier("fourth", 1, 50);
+    checkBumperFullTicketTier("fifth", 1, 50);
+  } else {
+    // In Weekly draws: 4th and 5th prizes are 4-digit numbers
+    const fours = (tier: "fourth" | "fifth", required: boolean) => {
+      const list = p[tier] as string[];
+      if (required && list.length < 1) e.push(`${tier}: no numbers found`);
+      if (list.length > 400) e.push(`${tier}: implausible count ${list.length}`);
+      for (const n of list) if (!FOUR_RE.test(n)) e.push(`${tier}: invalid number "${n}"`);
+      if (new Set(list).size !== list.length) e.push(`${tier}: duplicate numbers`);
+    };
+    fours("fourth", true);
+    fours("fifth", true);
+  }
+
+  // 6th through 9th are 4-digit numbers in both weekly and bumper draws
+  // (allowing up to 1000 numbers in bumper draws like Pooja Bumper with 762 slots)
+  const maxFours = isBumper ? 1000 : 400;
+  const foursTier = (tier: "sixth" | "seventh" | "eighth" | "ninth", required: boolean) => {
     const list = p[tier];
     if (required && list.length < 1) e.push(`${tier}: no numbers found`);
-    if (list.length > 400) e.push(`${tier}: implausible count ${list.length}`);
+    if (list.length > maxFours) e.push(`${tier}: implausible count ${list.length}`);
     for (const n of list) if (!FOUR_RE.test(n)) e.push(`${tier}: invalid number "${n}"`);
     if (new Set(list).size !== list.length) e.push(`${tier}: duplicate numbers`);
   };
-  fours("fourth", true); fours("fifth", true); fours("sixth", true); fours("seventh", true); fours("eighth", true); fours("ninth", false);
+  foursTier("sixth", true);
+  foursTier("seventh", true);
+  foursTier("eighth", true);
+  foursTier("ninth", false);
+
   return e;
 }
 

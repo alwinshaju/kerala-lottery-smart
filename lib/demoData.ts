@@ -54,6 +54,109 @@ export function buildDemoDraws(days = 400, today = new Date()): Draw[] {
       },
     });
   }
-  return draws;
+
+  // Seed Historical Pooja Bumper 2025 (BR-106)
+  draws.push({
+    id: "BR-2025-12-03", code: "BR", name: "Pooja Bumper 2025", drawNo: "BR-106",
+    date: "2025-12-03", verified: true,
+    prizes: {
+      first: [{ ticket: "JD 545542", district: "PALAKKAD" }],
+      second: [
+        { ticket: "JA 182736", district: "KOLLAM" },
+        { ticket: "JB 293847", district: "THRISSUR" },
+        { ticket: "JC 384950", district: "ERNAKULAM" },
+        { ticket: "JD 475869", district: "KOZHIKODE" },
+        { ticket: "JE 564738", district: "KANNUR" },
+      ],
+      third: [
+        { ticket: "JA 675849", district: "WAYANAD" },
+        { ticket: "JB 786950", district: "KOTTAYAM" },
+        { ticket: "JC 897061", district: "MALAPPURAM" },
+        { ticket: "JD 908172", district: "THIRUVANANTHAPURAM" },
+        { ticket: "JE 129384", district: "ALAPPUZHA" },
+      ],
+      consolation: [
+        { ticket: "JA 545542" },
+        { ticket: "JB 545542" },
+        { ticket: "JC 545542" },
+        { ticket: "JE 545542" },
+      ],
+      fourth: [
+        { ticket: "JA 345678", district: "PALAKKAD" },
+        { ticket: "JB 456789", district: "THRISSUR" },
+        { ticket: "JC 567890", district: "ERNAKULAM" },
+        { ticket: "JD 678901", district: "KOLLAM" },
+        { ticket: "JE 789012", district: "KASARAGOD" },
+      ],
+      fifth: [
+        { ticket: "JA 890123", district: "ALAPPUZHA" },
+        { ticket: "JB 901234", district: "KOTTAYAM" },
+        { ticket: "JC 112233", district: "IDUKKI" },
+        { ticket: "JD 223344", district: "PATHANAMTHITTA" },
+        { ticket: "JE 334455", district: "MALAPPURAM" },
+      ],
+      sixth: ["0229", "0844", "1477", "3560", "6266"],
+      seventh: ["1111", "2222", "3333", "4444", "5555"],
+      eighth: ["6666", "7777", "8888", "9999", "0000"],
+      ninth: ["1234", "2345", "3456", "4567", "5678"],
+    },
+    amounts: {
+      first: 120000000, second: 10000000, third: 1000000, consolation: 100000,
+      fourth: 300000, fifth: 200000, sixth: 5000, seventh: 1000, eighth: 500, ninth: 300,
+    },
+  });
+
+  // Seed Historical Pooja Bumper 2024 (BR-100)
+  draws.push({
+    id: "BR-2024-12-04", code: "BR", name: "Pooja Bumper 2024", drawNo: "BR-100",
+    date: "2024-12-04", verified: true,
+    prizes: {
+      first: [{ ticket: "JC 325526", district: "KAYAMKULAM" }],
+      second: [
+        { ticket: "JA 213243", district: "KANNUR" },
+        { ticket: "JB 324354", district: "ERNAKULAM" },
+        { ticket: "JC 435465", district: "THRISSUR" },
+        { ticket: "JD 546576", district: "PALAKKAD" },
+        { ticket: "JE 657687", district: "KOLLAM" },
+      ],
+      third: [
+        { ticket: "JA 768798", district: "KOZHIKODE" },
+        { ticket: "JB 879809", district: "WAYANAD" },
+        { ticket: "JC 980910", district: "MALAPPURAM" },
+        { ticket: "JD 192031", district: "THIRUVANANTHAPURAM" },
+        { ticket: "JE 203142", district: "KASARAGOD" },
+      ],
+      consolation: [
+        { ticket: "JA 325526" },
+        { ticket: "JB 325526" },
+        { ticket: "JD 325526" },
+        { ticket: "JE 325526" },
+      ],
+      fourth: [
+        { ticket: "JA 918273", district: "ALAPPUZHA" },
+        { ticket: "JB 827364", district: "KOTTAYAM" },
+        { ticket: "JC 736455", district: "IDUKKI" },
+        { ticket: "JD 645546", district: "THRISSUR" },
+        { ticket: "JE 554637", district: "PALAKKAD" },
+      ],
+      fifth: [
+        { ticket: "JA 112233", district: "KOLLAM" },
+        { ticket: "JB 223344", district: "ERNAKULAM" },
+        { ticket: "JC 334455", district: "KANNUR" },
+        { ticket: "JD 445566", district: "MALAPPURAM" },
+        { ticket: "JE 556677", district: "PATHANAMTHITTA" },
+      ],
+      sixth: ["0229", "0844", "1477", "3560", "6266"],
+      seventh: ["1010", "2020", "3030", "4040", "5050"],
+      eighth: ["6060", "7070", "8080", "9090", "0101"],
+      ninth: ["1357", "2468", "3579", "4680", "5791"],
+    },
+    amounts: {
+      first: 120000000, second: 10000000, third: 1000000, consolation: 100000,
+      fourth: 300000, fifth: 200000, sixth: 5000, seventh: 1000, eighth: 500, ninth: 300,
+    },
+  });
+
+  return draws.sort((a, b) => (a.date > b.date ? -1 : 1));
 }
 export { WEEKLY };

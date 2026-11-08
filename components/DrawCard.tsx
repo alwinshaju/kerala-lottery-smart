@@ -2,7 +2,8 @@
 import { BadgeCheck, Download } from "lucide-react";
 import { useApp } from "./Providers";
 import { afterDrawTime, pdfOverdue } from "@/lib/schedule";
-import type { Draw } from "@/lib/types";
+import type { Draw, TicketWin } from "@/lib/types";
+import { isTicketWin } from "@/lib/types";
 import { useEffect, useState } from "react";
 
 /** Shown from 3:00 PM IST until today's official result is in the database. */
@@ -50,7 +51,16 @@ export function DrawCard({ draw, compact }: { draw: Draw; compact?: boolean }) {
       {!compact && (["fourth", "fifth", "sixth", "seventh", "eighth", "ninth"] as const).map((k) => (
         <div key={k}>
           <div className="text-xs uppercase muted">{k} prize</div>
-          <div className="flex flex-wrap gap-x-3 gap-y-1">{p[k].map((n) => <Num key={n} s={n} />)}</div>
+          <div className="flex flex-wrap gap-x-3 gap-y-1">
+            {p[k].map((n, i) => isTicketWin(n) ? (
+              <div key={n.ticket} className="flex items-center gap-1">
+                <Num s={n.ticket} />
+                {n.district && <span className="muted text-xs">({n.district})</span>}
+              </div>
+            ) : (
+              <Num key={`${k}-${i}-${n}`} s={String(n)} />
+            ))}
+          </div>
         </div>
       ))}
       {draw.pdfUrl && <a className="btn btn-ghost" href={draw.pdfUrl} target="_blank" rel="noreferrer"><Download size={16} />{t("downloadPdf")}</a>}

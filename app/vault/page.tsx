@@ -22,9 +22,9 @@ export default function VaultPage() {
 
   function add() {
     setErr("");
-    const code = lotteryForWeekday(new Date(date + "T00:00").getDay()).code;
+    const code = date === "2026-11-28" ? "BR" : lotteryForWeekday(new Date(date + "T00:00").getDay()).code;
     const pa = parseTicket(a);
-    if (!pa?.full) return setErr("Enter a full ticket, e.g. PA 380169");
+    if (!pa?.full) return setErr("Enter a full ticket, e.g. PA 380169 or JA 123456");
     let list = [`${pa.series} ${pa.number}`];
     if (bundle) {
       const pb = parseTicket(b);
@@ -37,7 +37,7 @@ export default function VaultPage() {
   }
 
   const rows = useMemo(() => items.map((it) => {
-    const d = draws.find((x) => x.date === it.date && x.code === it.code);
+    const d = draws.find((x) => x.date === it.date && (x.code === it.code || (it.code === "BR" && x.code.startsWith("BR"))));
     const wins = d ? checkTicket(d, parseTicket(it.ticket)!) : null;
     return { it, d, wins };
   }), [items, draws]);

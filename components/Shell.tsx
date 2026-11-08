@@ -21,15 +21,23 @@ export function Shell({ children }: { children: React.ReactNode }) {
     <div className="min-h-dvh pb-44">
       <VaultWatcher />
       <header className="sticky top-0 z-30 bg-[color:var(--bg)]/90 backdrop-blur">
-        <div className="mx-auto max-w-md px-3 h-16 flex items-center justify-between gap-2">
-          <Link href="/" className="flex items-center gap-2 font-extrabold text-base whitespace-nowrap min-w-0" style={{ color: "var(--brand-d)" }}>
-            <span className="grid place-items-center w-8 h-8 shrink-0 rounded-xl text-white" style={{ background: "var(--brand)" }}>🍀</span>
-            <span className="dark:text-[color:var(--brand)]">{t("appName")}</span>
+        <div className="mx-auto max-w-md px-3 h-14 flex items-center justify-between gap-2">
+          <Link href="/" className="flex items-center gap-1.5 font-extrabold text-sm whitespace-nowrap min-w-0" style={{ color: "var(--brand-d)" }}>
+            <span className="grid place-items-center w-7 h-7 shrink-0 rounded-lg text-white text-sm" style={{ background: "var(--brand)" }}>🍀</span>
+            <span className="truncate dark:text-[color:var(--brand)]">{t("appName")}</span>
           </Link>
-          <div className="flex items-center gap-1.5 shrink-0">
-            <button className="chip !font-bold !px-2.5" onClick={() => setLang(lang === "en" ? "ml" : "en")}>{t("language")}</button>
-            <button className="chip !px-2.5 !font-extrabold" data-on={big} onClick={toggleBig} aria-label="large text">A+</button>
-            <button className="chip !px-2.5" onClick={toggleDark} aria-label="theme">{dark ? <Sun size={18} /> : <Moon size={18} />}</button>
+          <div className="flex items-center gap-1 shrink-0">
+            <Link
+              href="/bumper"
+              aria-label={lang === "ml" ? "പൂജ ബമ്പർ" : "Pooja Bumper"}
+              className="chip !px-2 !min-h-0 !h-9 flex items-center gap-1 !text-xs !font-black"
+              style={path.startsWith("/bumper") ? { background: "#b45309", color: "#fff", borderColor: "#b45309" } : { background: "rgba(245,158,11,.15)", color: "var(--gold)", borderColor: "rgba(245,158,11,.4)" }}
+            >
+              🔥<span className="hidden min-[400px]:inline">{lang === "ml" ? "ബമ്പർ" : "Bumper"}</span>
+            </Link>
+            <button className="chip !px-2 !min-h-0 !h-9 !text-xs !font-bold" onClick={() => setLang(lang === "en" ? "ml" : "en")}>{lang === "en" ? "മലയാളം" : "EN"}</button>
+            <button className="chip !px-1.5 !min-h-0 !h-9 !text-xs !font-extrabold" data-on={big} onClick={toggleBig} aria-label="large text">A+</button>
+            <button className="chip !px-1.5 !min-h-0 !h-9" onClick={toggleDark} aria-label="theme">{dark ? <Sun size={16} /> : <Moon size={16} />}</button>
           </div>
         </div>
       </header>

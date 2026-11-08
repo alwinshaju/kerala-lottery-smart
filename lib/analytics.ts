@@ -12,10 +12,15 @@ export function allHits(draws: Draw[]): Hit[] {
   const hits: Hit[] = [];
   for (const draw of draws) {
     for (const tier of TIER_ORDER) {
-      const v = draw.prizes[tier] as any[];
+      const v = (draw.prizes[tier] ?? []) as any[];
       for (const w of v) {
-        if (typeof w === "string") hits.push({ tier, tierLabel: ordinal[tier], four: w, draw });
-        else hits.push({ tier, tierLabel: ordinal[tier], four: w.ticket.replace(/\D/g, "").slice(-4), draw, ticket: w.ticket });
+        if (typeof w === "string") {
+          const digits = w.replace(/\D/g, "");
+          const four = digits.length >= 4 ? digits.slice(-4) : w;
+          hits.push({ tier, tierLabel: ordinal[tier], four, draw, ...(digits.length > 4 ? { ticket: w } : {}) });
+        } else if (w && typeof w.ticket === "string") {
+          hits.push({ tier, tierLabel: ordinal[tier], four: w.ticket.replace(/\D/g, "").slice(-4), draw, ticket: w.ticket });
+        }
       }
     }
   }
