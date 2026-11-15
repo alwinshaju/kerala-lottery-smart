@@ -1,0 +1,15 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": { "strict": true, "noEmit": true, "types": ["node"] },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "../lib/types.ts",
+    "../lib/ticket.ts",
+    "../lib/payout.ts",
+    "../lib/analytics.ts",
+    "../lib/schedule.ts",
+    "../lib/generator.ts",
+    "../lib/stallScorer.ts"
+  ]
+}
