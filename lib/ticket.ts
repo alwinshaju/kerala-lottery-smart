@@ -26,12 +26,14 @@ export function checkTicket(draw: Draw, t: ParsedTicket): Win[] {
   const amt = (tier: Tier) => draw.amounts?.[tier] ?? TIER_AMOUNTS[tier];
   const last4 = t.number.slice(-4);
 
+  // Prizes that are full ticket numbers (series + 6 digits) can only be confirmed from a full ticket.
+  // A partial entry (last 4 / 6 digits without series) must never report 1st-3rd, consolation or bumper 4th/5th wins.
+  const full = `${t.series}${t.number}`;
+
   // 1st through 3rd and consolation (always full ticket numbers with series)
-  for (const tier of ["first", "second", "third", "consolation"] as const) {
+  if (t.full) for (const tier of ["first", "second", "third", "consolation"] as const) {
     for (const w of draw.prizes[tier]) {
-      const wl = w.ticket.replace(/\s/g, "");
-      if (t.full && wl === `${t.series}${t.number}`) wins.push({ tier, amount: amt(tier), ticket: w.ticket });
-      else if (!t.full && wl.endsWith(t.number)) wins.push({ tier, amount: amt(tier), ticket: w.ticket });
+      if (w.ticket.replace(/\s/g, "") === full) wins.push({ tier, amount: amt(tier), ticket: w.ticket });
     }
   }
 
@@ -39,14 +41,10 @@ export function checkTicket(draw: Draw, t: ParsedTicket): Win[] {
   for (const tier of ["fourth", "fifth"] as const) {
     for (const item of draw.prizes[tier]) {
       if (isTicketWin(item)) {
-        const wl = item.ticket.replace(/\s/g, "");
-        if (t.full && wl === `${t.series}${t.number}`) wins.push({ tier, amount: amt(tier), ticket: item.ticket });
-        else if (!t.full && wl.endsWith(t.number)) wins.push({ tier, amount: amt(tier), ticket: item.ticket });
+        if (t.full && item.ticket.replace(/\s/g, "") === full) wins.push({ tier, amount: amt(tier), ticket: item.ticket });
       } else if (typeof item === "string") {
         if (/^[A-Z]{2}\s?\d{6}$/.test(item)) {
-          const wl = item.replace(/\s/g, "");
-          if (t.full && wl === `${t.series}${t.number}`) wins.push({ tier, amount: amt(tier), ticket: item });
-          else if (!t.full && wl.endsWith(t.number)) wins.push({ tier, amount: amt(tier), ticket: item });
+          if (t.full && item.replace(/\s/g, "") === full) wins.push({ tier, amount: amt(tier), ticket: item });
         } else if (item === last4) {
           wins.push({ tier, amount: amt(tier), ticket: last4 });
         }

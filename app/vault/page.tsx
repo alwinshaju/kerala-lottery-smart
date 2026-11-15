@@ -3,7 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { useApp } from "@/components/Providers";
 import { checkTicket, expandBundle, parseTicket, ordinal } from "@/lib/ticket";
-import { lotteryForWeekday } from "@/lib/schedule";
+import { isoDate, lotteryForWeekday, nowIST } from "@/lib/schedule";
+import { isBumperDraw } from "@/lib/rowMap";
 import { inr } from "@/lib/payout";
 
 interface Saved { id: string; ticket: string; date: string; code: string }
@@ -12,7 +13,7 @@ const KEY = "vault.v1";
 export default function VaultPage() {
   const { draws } = useApp();
   const [items, setItems] = useState<Saved[]>([]);
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(() => isoDate(nowIST())); // IST date, not UTC
   const [bundle, setBundle] = useState(false);
   const [a, setA] = useState(""); const [b, setB] = useState("");
   const [err, setErr] = useState("");
@@ -22,13 +23,17 @@ export default function VaultPage() {
 
   function add() {
     setErr("");
-    const code = date === "2026-11-28" ? "BR" : lotteryForWeekday(new Date(date + "T00:00").getDay()).code;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return setErr("Pick the draw date");
+    // Use the bumper draw held on that date if there is one, otherwise the weekday's weekly lottery.
+    const bumper = draws.find((d) => d.date === date && isBumperDraw(d.code, d.drawNo));
+    const code = bumper?.code ?? lotteryForWeekday(new Date(date + "T00:00").getDay()).code;
     const pa = parseTicket(a);
     if (!pa?.full) return setErr("Enter a full ticket, e.g. PA 380169 or JA 123456");
     let list = [`${pa.series} ${pa.number}`];
     if (bundle) {
       const pb = parseTicket(b);
       if (!pb?.full || pb.series !== pa.series) return setErr("Range end must be the same series, e.g. PA 380169");
+      if (Math.abs(+pb.number - +pa.number) + 1 > 100) return setErr("A bundle range can hold at most 100 tickets. Split it into smaller ranges.");
       list = expandBundle(pa.series!, +pa.number, +pb.number);
     }
     const existing = new Set(items.map((i) => i.ticket + i.date));
@@ -37,8 +42,11 @@ export default function VaultPage() {
   }
 
   const rows = useMemo(() => items.map((it) => {
-    const d = draws.find((x) => x.date === it.date && (x.code === it.code || (it.code === "BR" && x.code.startsWith("BR"))));
-    const wins = d ? checkTicket(d, parseTicket(it.ticket)!) : null;
+    // The saved code may be the weekday lottery; a bumper held the same day also counts.
+    const ds = draws.filter((x) => x.date === it.date && (x.code === it.code || isBumperDraw(x.code, x.drawNo)));
+    const d = ds[0];
+    const pt = parseTicket(it.ticket);
+    const wins = d && pt ? ds.flatMap((x) => checkTicket(x, pt)) : null;
     return { it, d, wins };
   }), [items, draws]);
   const winners = rows.filter((r) => r.wins?.length);
