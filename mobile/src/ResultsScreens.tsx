@@ -20,19 +20,13 @@ import { inr } from "../../lib/payout";
 import { WEEKLY, isoDate, nowIST, lotteryForWeekday } from "../../lib/schedule";
 export const OFFICIAL_PORTAL =
   "https://www.lotteryagent.kerala.gov.in/result/public/";
-/** Opens the official portal. The PDF download there asks a short maths
- * question, which the user answers themselves; the app never skips it. */
-export function openOfficialPdf(entry?: { drawNo: string; date: string }) {
-  Alert.alert(
-    "Official result PDF",
-    entry
-      ? `The Kerala State Lotteries website will open. Find ${entry.drawNo} (${entry.date}) in the list, tap Download and answer the simple maths question to get the PDF.`
-      : "The Kerala State Lotteries website will open. Find your draw in the list, tap Download and answer the simple maths question to get the PDF.",
-    [
-      { text: "Cancel", style: "cancel" },
-      { text: "Open website", onPress: () => openURL(OFFICIAL_PORTAL) },
-    ],
-  );
+/** Opens the official portal inside the app. The user answers the site's
+ * own maths question; the app never skips it. */
+export function openOfficialPdf(
+  go: ScreenProps["go"],
+  entry?: { drawNo: string; date: string },
+) {
+  go({ screen: "portal", ticket: entry?.drawNo, date: entry?.date });
 }
 export function openURL(url: string) {
   if (!/^https?:\/\//i.test(url)) {
@@ -417,7 +411,7 @@ export function Detail({ route, go }: ScreenProps) {
           secondary
           label="Download official PDF"
           icon="file"
-          onPress={() => openOfficialPdf(official ?? d)}
+          onPress={() => openOfficialPdf(go, official ?? d)}
         />
       </Card>
     );
@@ -471,14 +465,18 @@ export function Detail({ route, go }: ScreenProps) {
       <Card>
         <T weight="semi">
           {d.verified
-            ? "Official result · keep your ticket for the claim"
+            ? d.officialCheck === "corrected"
+              ? "Official result · corrected using the official PDF"
+              : d.officialCheck === "matched"
+                ? "Official result · matches the automatic results"
+                : "Official result · keep your ticket for the claim"
             : "Provisional result · confirm with the official Gazette"}
         </T>
         <Button
           secondary
           label="Download official PDF"
           icon="file"
-          onPress={() => openOfficialPdf(official ?? d)}
+          onPress={() => openOfficialPdf(go, official ?? d)}
         />
       </Card>
       {d.pdfUrl && (
@@ -644,7 +642,7 @@ export function OfficialResults({ go }: ScreenProps) {
           <Button
             secondary
             label="Open official website"
-            onPress={() => openOfficialPdf()}
+            onPress={() => openOfficialPdf(go)}
           />
         </Card>
       )}
@@ -695,7 +693,7 @@ function OfficialRow({
           <Button
             label="Download PDF"
             onPress={() =>
-              openOfficialPdf({
+              openOfficialPdf(go, {
                 drawNo: entry.drawNo,
                 date: displayDate(entry.date),
               })

@@ -1,0 +1,15 @@
+name = "lottery-admin"
+main = "src/admin-worker.ts"
+compatibility_date = "2025-01-01"
+workers_dev = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "lottery-official"
+database_id = "f805e2da-4636-45d3-999d-047a2ebb2f52"
+
+[vars]
+# Fill these in after turning on Cloudflare Access (see the steps in chat).
+TEAM_DOMAIN = "hidden-sea-3dd5.cloudflareaccess.com"
+POLICY_AUD = "ab4b4186b5ccb118fb43d5d5155fd4497f0acd8805d90487c7f320353ac2a27e"
+ALLOWED_EMAILS = ""

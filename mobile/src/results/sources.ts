@@ -29,6 +29,9 @@ export const RESULT_SOURCES = {
       "https://www.keralalotteries.net/feeds/posts/default?alt=json&max-results=40",
   },
 };
+/** Official results published by the app owner after checking the PDF. */
+export const OFFICIAL_UPLOADS_URL =
+  "https://lottery-official.lottery-official-api.workers.dev/api/draws?limit=200";
 export type CatalogEntry = OfficialCatalogEntry;
 type JsonObject = Record<string, unknown>;
 const object = (v: unknown): JsonObject =>
@@ -462,7 +465,10 @@ export async function fetchPublicResults(
     get(RESULT_SOURCES.official.url, 1800000, fetcher).then(
       parseOfficialCatalog,
     ),
+    get(OFFICIAL_UPLOADS_URL, 60000, fetcher).then(parseUploads),
   ]);
+  const uploads =
+    tasks[3].status === "fulfilled" ? (tasks[3].value as Draw[]) : [];
   const api = tasks[0].status === "fulfilled" ? (tasks[0].value as Draw[]) : [];
   const feed =
     tasks[1].status === "fulfilled" ? (tasks[1].value as Draw[]) : [];
@@ -484,7 +490,47 @@ export async function fetchPublicResults(
         ? [`${names[i]} returned no complete records.`]
         : [],
   );
-  return combineSources(api, feed, catalog, warnings);
+  const combined = combineSources(api, feed, catalog, warnings);
+  return applyUploads(combined, uploads);
+}
+
+/** Reads draws from the owner's official-results API, keeping only complete ones. */
+export function parseUploads(text: string, now = new Date()): Draw[] {
+  const data = JSON.parse(text) as { draws?: Draw[] };
+  return (data.draws ?? []).filter(
+    (d) =>
+      d &&
+      typeof d.id === "string" &&
+      d.prizes &&
+      publicDrawErrors({ ...d, prizes: d.prizes }, now).length === 0,
+  );
+}
+/** Official PDF numbers win. Record whether the public results already agreed. */
+export function applyUploads(
+  payload: ResultsPayload,
+  uploads: Draw[],
+): ResultsPayload {
+  if (!uploads.length) return payload;
+  const byId = new Map(payload.draws.map((d) => [d.id, d]));
+  for (const o of uploads) {
+    const auto = byId.get(o.id);
+    const checked: Draw = {
+      ...o,
+      verified: true,
+      source: "official_pdf",
+      sourceStatus: "matched",
+      numbersAgree: true,
+      disputed: undefined,
+      officialCheck: auto ? (samePrizeNumbers(auto, o) ? "matched" : "corrected") : undefined,
+      sourceNote: "Checked against the official Kerala State Lotteries PDF.",
+      sourceRecords: auto?.sourceRecords,
+    };
+    byId.set(o.id, checked);
+  }
+  return {
+    ...payload,
+    draws: [...byId.values()].sort((a, b) => b.date.localeCompare(a.date)),
+  };
 }
 
 export function mergeResults(
@@ -494,6 +540,12 @@ export function mergeResults(
   const draws = new Map((previous?.draws ?? []).map((d) => [d.id, d]));
   for (const d of next.draws) {
     const old = draws.get(d.id);
+    if (d.source === "official_pdf") {
+      draws.set(d.id, { ...d, updatedAt: next.updatedAt });
+      continue;
+    }
+    // Once an official PDF is published, later automatic fetches never replace it.
+    if (old?.source === "official_pdf") continue;
     const records = { ...old?.sourceRecords, ...d.sourceRecords };
     const officialDrawNo = d.officialDrawNo ?? old?.officialDrawNo;
     let merged: Draw = {

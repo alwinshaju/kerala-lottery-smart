@@ -1,3 +1,4 @@
+import { Portal } from "./src/PortalScreen";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -76,6 +77,11 @@ const titles: Record<Screen, [string, string, string]> = {
   ],
   alerts: ["Result alerts", "Follow only what matters to you.", "ഫല അറിയിപ്പുകൾ"],
   sum: ["Quick sum check", "Understand your ticket number.", "അക്കങ്ങളുടെ തുക"],
+  portal: [
+    "Official website",
+    "Download your result PDF.",
+    "ഔദ്യോഗിക വെബ്സൈറ്റ്",
+  ],
   official: [
     "Official PDFs",
     "Straight from Kerala State Lotteries.",
@@ -210,6 +216,9 @@ function Root() {
       break;
     case "sum":
       content = <Sum {...props} />;
+      break;
+    case "portal":
+      content = <Portal {...props} />;
       break;
     case "official":
       content = <OfficialResults {...props} />;
