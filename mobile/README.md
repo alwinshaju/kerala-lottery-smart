@@ -33,14 +33,14 @@ Output: `android/app/build/outputs/apk/release/app-release.apk`. This local test
 
 The public JSON API documents unauthenticated read access. The LOTIS PDF download flow currently asks the user to complete a CAPTCHA. The app does not solve/bypass it, manufacture download URLs, or label public publisher data as government verified.
 
-- **2 SOURCES:** every supplied prize list and available amount matches two public publishers. Shared upstream errors remain possible. This is not government certification.
-- **PUBLIC:** a complete result is available from one public publisher and remains unverified.
-- **SOURCE CONFLICT:** prize numbers/amounts disagree, or draw identity conflicts with the official catalogue. Ticket checking pauses for that draw, and the draw is excluded from number analytics. A temporary source outage cannot clear an existing conflict; agreement is required.
+- **PROVISIONAL:** a complete result from public sources whose prize numbers agree. Prize amounts that the sources disagree on are hidden ("see Gazette"). Not government certification.
+- **BEING CONFIRMED:** the draw identity conflicts with the official catalogue. Ticket checking pauses for that draw.
+- **Some numbers being confirmed:** the sources list a few different numbers in a tier. Numbers both agree on are shown, the disputed ones are counted but left out, and ticket checking pauses for that draw only.
 - **OFFICIAL:** reserved for actual official-document verification. The automatic public-source adapters never assign it.
 
 Parsers reject impossible/future dates, results before the draw time, missing amounts, incomplete weekly tiers, duplicate numbers, malformed tickets and inconsistent consolation series. Leading zeros stay intact. Unknown or incomplete records are skipped rather than repaired with invented values. No result is generated from number predictions.
 
-Opening the app fetches results automatically; foreground refresh repeats every two minutes. Source requests are cached separately: JSON history two minutes, comparison feed ten minutes, official catalogue thirty minutes. Pull down or use **More → Result sources** to refresh. Private vault and ledger data survive an upgrade from 1.0. Previous server/demo result caches are ignored. Validated history is retained without the previous 180-draw cap.
+Opening the app fetches results automatically; foreground refresh repeats every two minutes. Source requests are cached separately: JSON history two minutes, comparison feed ten minutes, official catalogue thirty minutes. Pull down to refresh. Private vault and ledger data survive an upgrade from 1.0. Previous server/demo result caches are ignored. Validated history is retained without the previous 180-draw cap.
 
 ## Complete archive collection and history ideas
 

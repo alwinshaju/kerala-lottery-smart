@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Alert, Linking, Pressable, Share, View } from "react-native";
 import { useApp } from "./state";
 import {
@@ -145,7 +145,14 @@ export function Home({ go }: ScreenProps) {
         onPress={() => go({ screen: "check" })}
       />
       <View
-        style={[s.row, { justifyContent: "space-between", paddingVertical: 4 }]}
+        style={[
+          s.row,
+          {
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            paddingVertical: 4,
+          },
+        ]}
       >
         {(
           [
@@ -171,11 +178,11 @@ export function Home({ go }: ScreenProps) {
               colors: ["#D7CAFA", "#BBA7E6"],
             },
             {
-              label: "More",
-              ml: "കൂടുതൽ",
-              icon: "grid",
-              screen: "more",
-              colors: ["#FFFFFF", "#DFD5F3"],
+              label: "Stall assistant",
+              ml: "സ്റ്റാൾ സഹായി",
+              icon: "shop",
+              screen: "stall",
+              colors: ["#FFE3D6", "#F2B39A"],
             },
           ] as const
         ).map((x) => (
@@ -186,7 +193,11 @@ export function Home({ go }: ScreenProps) {
             accessibilityRole="button"
           >
             <QuickTile colors={x.colors} icon={x.icon} />
-            <T weight="semi" style={{ fontSize: 12 }}>
+            <T
+              weight="semi"
+              numberOfLines={2}
+              style={{ fontSize: 12, textAlign: "center" }}
+            >
               {ml ? x.ml : x.label}
             </T>
           </Pressable>

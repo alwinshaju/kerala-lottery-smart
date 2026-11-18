@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Alert, Modal, Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Clipboard from "expo-clipboard";
@@ -28,8 +28,14 @@ import {
 } from "../../lib/schedule";
 import { ticketOutcome, validDate } from "./domain";
 import { Scanner } from "./Scanner";
+import {
+  budgetState,
+  daysLeftInMonth,
+  overspendWarning,
+  spentOn,
+} from "./budget";
 import { openURL } from "./ResultsScreens";
-export function Check({ route, go }: ScreenProps) {
+export function Check({ route }: ScreenProps) {
   const { draws, payload, tickets, setTickets } = useApp();
   const initial = parseTicket(route.ticket ?? "");
   const [series, setSeries] = useState(initial?.series ?? "");
@@ -171,11 +177,11 @@ export function Check({ route, go }: ScreenProps) {
           </T>
           <T weight="bold" style={s.h2}>
             {result.state === "conflict"
-              ? "Checking paused — sources disagree"
+              ? "Result being confirmed — check paused"
               : result.wins.length
                 ? result.state === "won"
                   ? "Prize match found"
-                  : "Possible match — verify source"
+                  : "Possible match — confirm with the Gazette"
                 : "No prize match found"}
           </T>
           <T>
@@ -188,7 +194,7 @@ export function Check({ route, go }: ScreenProps) {
           ))}
           <T style={s.muted}>
             {result.state === "conflict"
-              ? "Wait for the sources to agree, or check your ticket against the official Gazette."
+              ? "This result is still being confirmed. Try again shortly, or check your ticket against the official Gazette."
               : result.state === "sample"
                 ? "This is synthetic sample data."
                 : result.state === "provisional"
@@ -265,6 +271,145 @@ export function Check({ route, go }: ScreenProps) {
     </>
   );
 }
+function BudgetCard({ go }: { go: ScreenProps["go"] }) {
+  const { ledger, setLedger, preferences, setPreferences } = useApp();
+  const today = isoDate(nowIST());
+  const month = spentOn(ledger, today.slice(0, 7));
+  const day = spentOn(ledger, today);
+  const { limit, dailyLimit } = preferences;
+  const state = budgetState(month, limit);
+  const [editing, setEditing] = useState(false);
+  const [amount, setAmount] = useState("");
+  const left = Math.max(0, limit - month);
+  const perDay = Math.floor(left / daysLeftInMonth(today));
+  const numeric = (v: string) => Number(v.replace(/\D/g, "")) || 0;
+  const color =
+    state === "reached" ? C.orange : state === "near" ? "#B7791F" : C.purple;
+  function record() {
+    const value = Number(amount);
+    if (!/^\d+$/.test(amount) || value <= 0) {
+      Alert.alert("Add spend", "Enter the amount in rupees.");
+      return;
+    }
+    const save = () => {
+      setLedger((x) => [
+        {
+          id: Crypto.randomUUID(),
+          date: today,
+          code: lotteryForWeekday(nowIST().getDay()).code,
+          tickets: 0,
+          spent: value,
+          won: 0,
+          note: "",
+        },
+        ...x,
+      ]);
+      setAmount("");
+    };
+    const warning = overspendWarning(ledger, today, value, limit, dailyLimit);
+    if (!warning) return save();
+    Alert.alert("Over your limit", `${warning} Add this spend anyway?`, [
+      { text: "Don't add", style: "cancel" },
+      { text: "Add anyway", style: "destructive", onPress: save },
+    ]);
+  }
+  return (
+    <Card>
+      <View style={s.between}>
+        <Heading title="Lottery budget" />
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setEditing((e) => !e)}
+        >
+          <T weight="semi" style={s.link}>
+            {editing ? "Done" : limit || dailyLimit ? "Edit" : "Set up"}
+          </T>
+        </Pressable>
+      </View>
+      {!limit && !dailyLimit && !editing && (
+        <T style={s.muted}>
+          Set a monthly budget and a daily limit to keep your lottery spending
+          in check. Only you see this; it stays on this phone.
+        </T>
+      )}
+      {editing && (
+        <View style={s.row}>
+          <Field
+            label="Monthly budget (₹)"
+            placeholder="0 = no limit"
+            keyboardType="number-pad"
+            value={limit ? String(limit) : ""}
+            onChangeText={(v) => setPreferences({ limit: numeric(v) })}
+          />
+          <Field
+            label="Daily limit (₹)"
+            placeholder="0 = no limit"
+            keyboardType="number-pad"
+            value={dailyLimit ? String(dailyLimit) : ""}
+            onChangeText={(v) => setPreferences({ dailyLimit: numeric(v) })}
+          />
+        </View>
+      )}
+      {limit > 0 && (
+        <>
+          <View
+            style={{
+              height: 10,
+              backgroundColor: C.pale,
+              borderRadius: 8,
+              overflow: "hidden",
+            }}
+          >
+            <View
+              style={{
+                height: 10,
+                width: `${Math.min(100, (month / limit) * 100)}%`,
+                backgroundColor: color,
+              }}
+            />
+          </View>
+          <T weight="semi" style={{ color }}>
+            {inr(month)} of {inr(limit)} this month
+          </T>
+          <T style={s.muted}>
+            {state === "reached"
+              ? "Monthly budget reached. Consider pausing until next month."
+              : state === "near"
+                ? `Close to your budget · ${inr(left)} left`
+                : `${inr(left)} left · about ${inr(perDay)} a day`}
+          </T>
+        </>
+      )}
+      {dailyLimit > 0 && (
+        <T
+          weight="semi"
+          style={{ color: day >= dailyLimit ? C.orange : C.ink }}
+        >
+          Today: {inr(day)} of {inr(dailyLimit)}
+          {day >= dailyLimit ? " · daily limit reached" : ""}
+        </T>
+      )}
+      <View style={s.row}>
+        <Field
+          label="Add today's spend (₹)"
+          placeholder="e.g. 100"
+          keyboardType="number-pad"
+          value={amount}
+          onChangeText={(v) => setAmount(v.replace(/\D/g, ""))}
+        />
+      </View>
+      <Button secondary label="Add spend" onPress={record} />
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => go({ screen: "ledger" })}
+      >
+        <T weight="semi" style={s.link}>
+          See my full ledger ›
+        </T>
+      </Pressable>
+    </Card>
+  );
+}
 export function Tickets({ go }: ScreenProps) {
   const { tickets, setTickets, draws, payload } = useApp();
   const [filter, setFilter] = useState("All");
@@ -291,6 +436,7 @@ export function Tickets({ go }: ScreenProps) {
         eyebrow="YOUR PRIVATE VAULT"
       />
       <Button label="Add a ticket" icon="plus" onPress={() => setAdd(true)} />
+      <BudgetCard go={go} />
       <Tabs
         items={["All", "Upcoming", "Checked"]}
         value={filter}
@@ -330,7 +476,7 @@ export function Tickets({ go }: ScreenProps) {
                   }}
                 >
                   {result.state === "conflict"
-                    ? "Source conflict — check paused"
+                    ? "Being confirmed — check paused"
                     : result.state === "pending"
                       ? "Awaiting result"
                       : result.state === "won"

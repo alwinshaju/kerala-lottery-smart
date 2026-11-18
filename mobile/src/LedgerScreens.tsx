@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Alert, Platform, Pressable, View } from "react-native";
 import * as Crypto from "expo-crypto";
 import { File, Paths } from "expo-file-system";

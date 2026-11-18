@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Alert, Linking, Pressable, Switch, View } from "react-native";
 import { useApp } from "./state";
 import {
@@ -6,7 +6,6 @@ import {
   Button,
   C,
   Card,
-  Field,
   Heading,
   Icon,
   Notice,
@@ -14,10 +13,9 @@ import {
   s,
   type IconName,
 } from "./ui";
-import type { ScreenProps, Screen } from "./navigation";
+import type { ScreenProps } from "./navigation";
 import { ALL_LOTTERIES } from "../../lib/schedule";
 import { configureResultAlerts } from "./notificationsDevice";
-import { openURL } from "./ResultsScreens";
 export function More({ go }: ScreenProps) {
   const { preferences: p, setPreferences } = useApp();
   const ml = p.language === "ml";
@@ -180,7 +178,7 @@ function MenuRow({
     </Pressable>
   );
 }
-export function Alerts({ go }: ScreenProps) {
+export function Alerts(_: ScreenProps) {
   const { preferences: p, setPreferences } = useApp();
   const [follows, setFollows] = useState(p.follows);
   const [busy, setBusy] = useState(false);
@@ -269,13 +267,6 @@ export function Alerts({ go }: ScreenProps) {
           void Linking.openSettings();
         }}
       />
-      {process.env.EXPO_PUBLIC_TELEGRAM_URL && (
-        <Button
-          secondary
-          label="Join the Telegram channel"
-          onPress={() => openURL(process.env.EXPO_PUBLIC_TELEGRAM_URL!)}
-        />
-      )}
       <Notice>
         No server or push credentials are required. The app checks for new
         results while open and requests background checks at a minimum interval

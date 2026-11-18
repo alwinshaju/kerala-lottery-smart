@@ -37,6 +37,7 @@ export interface Preferences {
   language: "en" | "ml";
   large: boolean;
   limit: number;
+  dailyLimit: number;
   follows: string[];
   alertsEnabled: boolean;
 }
@@ -44,6 +45,7 @@ const defaults: Preferences = {
   language: "en",
   large: false,
   limit: 0,
+  dailyLimit: 0,
   follows: [],
   alertsEnabled: false,
 };
@@ -87,6 +89,7 @@ function useStore() {
             language: s.preferences?.language === "ml" ? "ml" : "en",
             large: !!s.preferences?.large,
             limit: s.preferences?.limit ?? 0,
+            dailyLimit: s.preferences?.dailyLimit ?? 0,
             follows: s.preferences?.follows ?? [],
             alertsEnabled: !!s.preferences?.alertsEnabled,
           };
