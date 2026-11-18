@@ -1,6 +1,6 @@
 import type { Draw } from "./types";
 import { digitSum, oddCount } from "./generator";
-import { allHits } from "./analytics";
+import { iterateHits } from "./analytics";
 
 export interface ScoreCriterion {
   score: number;
@@ -52,7 +52,8 @@ export function scoreDigitSum(sum: number): ScoreCriterion {
       maxScore: 35,
       label: "6-Digit Sum",
       badge: `Σ${sum} · Peak Center`,
-      comment: "Optimal statistical bell-curve center (highest probability density)",
+      comment:
+        "Optimal statistical bell-curve center (highest probability density)",
     };
   }
   if ((sum >= 24 && sum <= 25) || (sum >= 29 && sum <= 30)) {
@@ -105,13 +106,16 @@ export function scoreDigitSum(sum: number): ScoreCriterion {
  * - Base points on historical appearance count in official/consensus draws
  * - Bonus points if ending is in the all-time top high-frequency list
  */
-export function scoreHistory(fourEnding: string, draws: Draw[]): { criterion: ScoreCriterion; hits: number; isHot: boolean } {
+export function scoreHistory(
+  fourEnding: string,
+  draws: Draw[],
+): { criterion: ScoreCriterion; hits: number; isHot: boolean } {
   const isHot = TOP_HOT_ENDINGS.includes(fourEnding);
 
   // Count occurrences across stored draws
   let count = 0;
   if (draws.length > 0) {
-    const hits = allHits(draws);
+    const hits = iterateHits(draws);
     for (const h of hits) {
       if (h.four === fourEnding) count++;
     }
@@ -136,8 +140,8 @@ export function scoreHistory(fourEnding: string, draws: Draw[]): { criterion: Sc
       comment: isHot
         ? `Top high-frequency ending (${count} wins in database + hot bonus)`
         : count > 0
-        ? `Has won ${count} time(s) across historical prize tiers`
-        : "Unseen in recent history (fresh combination)",
+          ? `Has won ${count} time(s) across historical prize tiers`
+          : "Unseen in recent history (fresh combination)",
     },
   };
 }
@@ -149,7 +153,11 @@ export function scoreHistory(fourEnding: string, draws: Draw[]): { criterion: Sc
  * - 10 pts if all distinct
  * - Penalty: -15 pts if 4+ identical digits in a row (e.g. 5555xx)
  */
-export function scoreRepetitionPattern(num: string): { criterion: ScoreCriterion; pairs: string[]; hasLongRun: boolean } {
+export function scoreRepetitionPattern(num: string): {
+  criterion: ScoreCriterion;
+  pairs: string[];
+  hasLongRun: boolean;
+} {
   // Check for 4+ consecutive identical digits
   const hasLongRun = /(.)\1\1\1/.test(num);
 
@@ -171,15 +179,18 @@ export function scoreRepetitionPattern(num: string): { criterion: ScoreCriterion
   if (hasLongRun) {
     score = 0;
     badge = "4+ Run Penalty";
-    comment = "Contains 4+ consecutive identical digits (statistically improbable)";
+    comment =
+      "Contains 4+ consecutive identical digits (statistically improbable)";
   } else if (uniquePairs.length >= 2) {
     score = 20;
     badge = `Pairs: ${uniquePairs.join(", ")} (Double Pair)`;
-    comment = "Ideal double-pair pattern (matches Bumper & weekly winner profiles)";
+    comment =
+      "Ideal double-pair pattern (matches Bumper & weekly winner profiles)";
   } else if (uniquePairs.length === 1) {
     score = 20;
     badge = `Pair: ${uniquePairs[0]}`;
-    comment = "Optimal single-pair repetition (matches 84.88% of winning tickets)";
+    comment =
+      "Optimal single-pair repetition (matches 84.88% of winning tickets)";
   }
 
   return {
@@ -212,7 +223,8 @@ export function scoreOddEvenBalance(num: string): ScoreCriterion {
       maxScore: 15,
       label: "Odd/Even Balance",
       badge: "3 Odd : 3 Even (Ideal)",
-      comment: "Perfect statistical equilibrium (most frequent parity distribution)",
+      comment:
+        "Perfect statistical equilibrium (most frequent parity distribution)",
     };
   }
   if ((o === 4 && e === 2) || (o === 2 && e === 4)) {
@@ -245,9 +257,13 @@ export function scoreOddEvenBalance(num: string): ScoreCriterion {
 /**
  * Evaluates a single 6-digit ticket against the 4 criteria
  */
-export function evaluateTicket(rawTicket: string, draws: Draw[] = []): TicketEvaluation | null {
+export function evaluateTicket(
+  rawTicket: string,
+  draws: Draw[] = [],
+): TicketEvaluation | null {
   const clean = rawTicket.toUpperCase().trim();
-  const match = clean.match(/^([A-Z]{2})\s*(\d{6})$/) || clean.match(/^(\d{6})$/);
+  const match =
+    clean.match(/^([A-Z]{2})\s*(\d{6})$/) || clean.match(/^(\d{6})$/);
 
   if (!match) return null;
 
@@ -266,7 +282,8 @@ export function evaluateTicket(rawTicket: string, draws: Draw[] = []): TicketEva
   const rep = scoreRepetitionPattern(num);
   const balCrit = scoreOddEvenBalance(num);
 
-  const totalScore = sumCrit.score + hist.criterion.score + rep.criterion.score + balCrit.score;
+  const totalScore =
+    sumCrit.score + hist.criterion.score + rep.criterion.score + balCrit.score;
 
   return {
     ticket: series ? `${series} ${num}` : num,
@@ -293,7 +310,10 @@ export function evaluateTicket(rawTicket: string, draws: Draw[] = []): TicketEva
 /**
  * Evaluates a list of 2 to 6 stall tickets and ranks them from best (#1) to worst
  */
-export function compareStallTickets(ticketInputs: string[], draws: Draw[] = []): TicketEvaluation[] {
+export function compareStallTickets(
+  ticketInputs: string[],
+  draws: Draw[] = [],
+): TicketEvaluation[] {
   const evaluated: TicketEvaluation[] = [];
 
   for (const input of ticketInputs) {
@@ -305,7 +325,8 @@ export function compareStallTickets(ticketInputs: string[], draws: Draw[] = []):
   // Sort descending by totalScore (tie-break by sumCriterion, then historyCriterion)
   evaluated.sort((a, b) => {
     if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
-    if (b.sumCriterion.score !== a.sumCriterion.score) return b.sumCriterion.score - a.sumCriterion.score;
+    if (b.sumCriterion.score !== a.sumCriterion.score)
+      return b.sumCriterion.score - a.sumCriterion.score;
     return b.historyCriterion.score - a.historyCriterion.score;
   });
 
@@ -330,7 +351,11 @@ export interface BundleEvaluation {
  * Mode 2: Bundle / Book Optimizer
  * Evaluates all tickets with a given 4-digit or 5-digit prefix and returns the top picks
  */
-export function optimizeBundle(prefixInput: string, series = "JA", draws: Draw[] = []): BundleEvaluation | null {
+export function optimizeBundle(
+  prefixInput: string,
+  series = "JA",
+  draws: Draw[] = [],
+): BundleEvaluation | null {
   const clean = prefixInput.replace(/\D/g, "");
   if (clean.length !== 4 && clean.length !== 5) return null;
 
@@ -355,7 +380,8 @@ export function optimizeBundle(prefixInput: string, series = "JA", draws: Draw[]
   // Sort a copy for top picks ranking
   const sorted = [...allTickets].sort((a, b) => {
     if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
-    if (b.sumCriterion.score !== a.sumCriterion.score) return b.sumCriterion.score - a.sumCriterion.score;
+    if (b.sumCriterion.score !== a.sumCriterion.score)
+      return b.sumCriterion.score - a.sumCriterion.score;
     return b.historyCriterion.score - a.historyCriterion.score;
   });
 

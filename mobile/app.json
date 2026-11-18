@@ -1,0 +1,47 @@
+{
+  "expo": {
+    "name": "Lottery Hub",
+    "slug": "lottery-hub",
+    "version": "1.2.0",
+    "scheme": "lotteryhub",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "bundleIdentifier": "in.lotteryhub.app",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "in.lotteryhub.app",
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO"
+      ],
+      "versionCode": 3,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0f766e"
+      }
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Scan the barcode or printed number on your lottery ticket.",
+          "recordAudioAndroid": false,
+          "barcodeScannerEnabled": true
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Choose a ticket photo to read its printed number.",
+          "microphonePermission": false
+        }
+      ],
+      "expo-notifications",
+      "expo-font",
+      "expo-background-task",
+      "./plugins/withArchiveStorage"
+    ],
+    "icon": "./assets/icon.png"
+  }
+}
