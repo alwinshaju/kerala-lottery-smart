@@ -160,7 +160,6 @@ const ml: Record<string, string> = {
   "Make another set": "മറ്റൊരു സെറ്റ്",
   "Official result PDFs": "ഔദ്യോഗിക ഫലം PDF",
   "Download from Kerala State Lotteries": "കേരള ഭാഗ്യക്കുറിയിൽ നിന്ന് ഡൗൺലോഡ് ചെയ്യുക",
-  "Download PDF": "PDF ഡൗൺലോഡ്",
   "Download official PDF": "ഔദ്യോഗിക PDF ഡൗൺലോഡ്",
   "View result": "ഫലം കാണുക",
   "My ledger": "എന്റെ കണക്ക്",

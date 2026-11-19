@@ -14,20 +14,10 @@ import {
   s,
 } from "./ui";
 import type { ScreenProps } from "./navigation";
-import type { Draw, OfficialCatalogEntry } from "../../lib/types";
+import type { Draw } from "../../lib/types";
 import { TIER_ORDER, ordinal } from "../../lib/ticket";
 import { inr } from "../../lib/payout";
 import { WEEKLY, isoDate, nowIST, lotteryForWeekday } from "../../lib/schedule";
-export const OFFICIAL_PORTAL =
-  "https://www.lotteryagent.kerala.gov.in/result/public/";
-/** Opens the official portal inside the app. The user answers the site's
- * own maths question; the app never skips it. */
-export function openOfficialPdf(
-  go: ScreenProps["go"],
-  entry?: { drawNo: string; date: string },
-) {
-  go({ screen: "portal", ticket: entry?.drawNo, date: entry?.date });
-}
 export function openURL(url: string) {
   if (!/^https?:\/\//i.test(url)) {
     Alert.alert("Unavailable", "This link is not a valid web address.");
@@ -421,20 +411,6 @@ export function Results({ go }: ScreenProps) {
   const [code, setCode] = useState("All");
   return (
     <>
-      <Card>
-        <Pressable
-          accessibilityRole="button"
-          style={s.row}
-          onPress={() => go({ screen: "official" })}
-        >
-          <Icon name="file" />
-          <View style={{ flex: 1 }}>
-            <T weight="semi">Official result PDFs</T>
-            <T style={s.muted}>Every draw published by Kerala State Lotteries</T>
-          </View>
-          <T style={{ color: C.purple, fontSize: 24 }}>›</T>
-        </Pressable>
-      </Card>
       <Tabs
         items={["All", ...WEEKLY.map((l) => l.code), "Bumper"]}
         value={code}
@@ -468,11 +444,6 @@ export function Results({ go }: ScreenProps) {
 export function Detail({ route, go }: ScreenProps) {
   const { draws, payload, loading, refresh } = useApp();
   const d = draws.find((d) => d.id === route.drawId);
-  const official = d
-    ? payload?.officialCatalog?.find(
-        (e) => e.code === d.code && e.date === d.date,
-      )
-    : undefined;
   if (!d)
     return (
       <Card>
@@ -497,12 +468,6 @@ export function Detail({ route, go }: ScreenProps) {
           label={loading ? "Refreshing…" : "Refresh results"}
           disabled={loading}
           onPress={() => void refresh()}
-        />
-        <Button
-          secondary
-          label="Download official PDF"
-          icon="file"
-          onPress={() => openOfficialPdf(go, official ?? d)}
         />
       </Card>
     );
@@ -563,12 +528,6 @@ export function Detail({ route, go }: ScreenProps) {
                 : "Official result · keep your ticket for the claim"
             : "Provisional result · confirm with the official Gazette"}
         </T>
-        <Button
-          secondary
-          label="Download official PDF"
-          icon="file"
-          onPress={() => openOfficialPdf(go, official ?? d)}
-        />
       </Card>
       {d.pdfUrl && (
         <Button
@@ -669,129 +628,5 @@ export function Schedule({ go }: ScreenProps) {
         onPress={() => go({ screen: "alerts" })}
       />
     </>
-  );
-}
-
-const PAGE = 30;
-function displayDate(iso: string) {
-  const [y, m, d] = iso.split("-");
-  return `${d}/${m}/${y}`;
-}
-export function OfficialResults({ go }: ScreenProps) {
-  const { payload, draws, loading, refresh } = useApp();
-  const catalog = payload?.officialCatalog ?? [];
-  const names = [...new Set(catalog.map((e) => e.name))];
-  const [name, setName] = useState("All");
-  const [shown, setShown] = useState(PAGE);
-  const list = catalog.filter((e) => name === "All" || e.name === name);
-  return (
-    <>
-      <Card>
-        <Heading title="Official result PDFs" />
-        <T style={s.muted}>
-          Draws published on the Kerala State Lotteries website. Tap a draw to
-          download its official PDF from the government site.
-        </T>
-      </Card>
-      {names.length > 1 && (
-        <Tabs
-          items={["All", ...names]}
-          value={name}
-          onChange={(v) => {
-            setName(v);
-            setShown(PAGE);
-          }}
-        />
-      )}
-      {list.slice(0, shown).map((e) => (
-        <OfficialRow
-          key={e.drawNo}
-          entry={e}
-          draw={draws.find((d) => d.code === e.code && d.date === e.date)}
-          go={go}
-        />
-      ))}
-      {list.length > shown && (
-        <Button
-          secondary
-          label={`Show more (${list.length - shown} left)`}
-          onPress={() => setShown((n) => n + PAGE)}
-        />
-      )}
-      {!catalog.length && (
-        <Card>
-          <T weight="bold">Official list not loaded yet</T>
-          <T style={s.muted}>
-            The government website may be busy. Try again, or open it directly.
-          </T>
-          <Button
-            label={loading ? "Refreshing…" : "Refresh"}
-            icon="refresh"
-            disabled={loading}
-            onPress={() => void refresh()}
-          />
-          <Button
-            secondary
-            label="Open official website"
-            onPress={() => openOfficialPdf(go)}
-          />
-        </Card>
-      )}
-      <Notice>
-        PDFs are served by the Kerala State Lotteries website, which asks a
-        simple maths question before each download.
-      </Notice>
-    </>
-  );
-}
-function OfficialRow({
-  entry,
-  draw,
-  go,
-}: {
-  entry: OfficialCatalogEntry;
-  draw?: Draw;
-  go: ScreenProps["go"];
-}) {
-  return (
-    <Card>
-      <View style={s.between}>
-        <View style={{ flex: 1 }}>
-          <T weight="bold" style={{ fontSize: 17 }}>
-            {entry.name} · {entry.drawNo}
-          </T>
-          <T style={{ fontSize: 12, color: C.muted }}>
-            {displayDate(entry.date)}
-          </T>
-        </View>
-        <View style={s.badge}>
-          <T weight="semi" style={s.badgeText}>
-            OFFICIAL
-          </T>
-        </View>
-      </View>
-      <View style={s.row}>
-        {draw && (
-          <View style={{ flex: 1 }}>
-            <Button
-              secondary
-              label="View result"
-              onPress={() => go({ screen: "detail", drawId: draw.id })}
-            />
-          </View>
-        )}
-        <View style={{ flex: 1 }}>
-          <Button
-            label="Download PDF"
-            onPress={() =>
-              openOfficialPdf(go, {
-                drawNo: entry.drawNo,
-                date: displayDate(entry.date),
-              })
-            }
-          />
-        </View>
-      </View>
-    </Card>
   );
 }
