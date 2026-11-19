@@ -1,6 +1,8 @@
 const C = "klhub-v2";
 self.addEventListener("install", () => self.skipWaiting());
-self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
+self.addEventListener("activate", (e) => e.waitUntil(
+  caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== C).map((k) => caches.delete(k)))).then(() => self.clients.claim())
+));
 
 // Network-first with cache fallback: pages, assets AND /api/results, so the last results open offline.
 self.addEventListener("fetch", (e) => {
@@ -9,7 +11,7 @@ self.addEventListener("fetch", (e) => {
   if (u.pathname.startsWith("/api/") && !u.pathname.startsWith("/api/results")) return;
   const key = u.pathname.startsWith("/api/results") ? new Request(u.origin + "/api/results") : r; // ignore ?v= in cache key
   e.respondWith(fetch(r).then((res) => { if (res.ok) { const cp = res.clone(); caches.open(C).then((c) => c.put(key, cp)); } return res; })
-    .catch(() => caches.match(key)));
+    .catch(() => caches.match(key).then((hit) => hit || Response.error())));
 });
 
 self.addEventListener("push", (e) => {

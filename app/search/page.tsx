@@ -52,7 +52,7 @@ export default function SearchPage() {
             ) : <div className="text-xl mt-2">{t("noWin")}</div>}
             <div className="text-xs opacity-80 mt-2">{draw.name} {draw.drawNo} · {draw.date}</div>
             {!draw.verified && <div className="text-xs mt-1 opacity-90">Based on unofficial data; the official PDF is not published yet.</div>}
-            {!parsed.full && <div className="text-xs opacity-80">Last-digits match only — confirm the series on the physical ticket.</div>}
+            {!parsed.full && <div className="text-xs opacity-80">Without the series, only last-4-digit prizes (4th–9th) are checked. Enter the full ticket (e.g. PA 380169) to check the 1st–3rd and consolation prizes.</div>}
           </div>
         </ShareImage>
       )}

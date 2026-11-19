@@ -27,10 +27,14 @@ create index if not exists draws_date_idx on draws (date desc);
 create index if not exists draws_code_idx on draws (code);
 create index if not exists draws_draw_no_idx on draws (draw_no);
 alter table draws enable row level security;
+drop policy if exists "public read" on draws;
 create policy "public read" on draws for select using (true);
 -- if the table already exists: alter table draws add column if not exists updated_at timestamptz not null default now();
 -- writes happen only with the service-role key (server side); enable Realtime for live ticker:
-alter publication supabase_realtime add table draws;
+do $$ begin
+  alter publication supabase_realtime add table draws;
+exception when duplicate_object then null;
+end $$;
 
 -- Web push subscriptions (written only by the server with the service-role key)
 create table if not exists push_subs (
