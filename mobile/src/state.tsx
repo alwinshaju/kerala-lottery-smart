@@ -40,6 +40,7 @@ export interface Preferences {
   dailyLimit: number;
   follows: string[];
   alertsEnabled: boolean;
+  dailyReminder: boolean;
 }
 const defaults: Preferences = {
   language: "en",
@@ -48,6 +49,7 @@ const defaults: Preferences = {
   dailyLimit: 0,
   follows: [],
   alertsEnabled: false,
+  dailyReminder: true,
 };
 interface Store {
   tickets: SavedTicket[];
@@ -92,6 +94,7 @@ function useStore() {
             dailyLimit: s.preferences?.dailyLimit ?? 0,
             follows: s.preferences?.follows ?? [],
             alertsEnabled: !!s.preferences?.alertsEnabled,
+            dailyReminder: s.preferences?.dailyReminder !== false,
           };
           setStore({ tickets: s.tickets, ledger: s.ledger, preferences });
         }
