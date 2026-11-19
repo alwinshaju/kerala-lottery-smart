@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Alert, Pressable, View } from "react-native";
 import { useApp } from "./state";
 import {
@@ -32,11 +32,13 @@ import {
   generateHistoryIdeas,
   type HistoryIdea,
 } from "./historyIdeas";
+import { customIdeaError, makeCustomNumbers } from "./customPicks";
 export function Picks({ go }: ScreenProps) {
-  const { draws, historyProgress, historyLoading, syncHistory } = useApp();
+  const { draws } = useApp();
   const [balance, setBalance] = useState("Any mix"),
     [range, setRange] = useState("Any total"),
     [mode, setMode] = useState("History ideas"),
+    [kind, setKind] = useState("Auto pick"),
     [lottery, setLottery] = useState("All lotteries");
   const [numbers, setNumbers] = useState<string[]>([]),
     [ideas, setIdeas] = useState<HistoryIdea[]>([]),
@@ -90,162 +92,245 @@ export function Picks({ go }: ScreenProps) {
         body="Explore history, never guaranteed predictions."
       />
       <Tabs
-        items={["History ideas", "Random ideas"]}
-        value={mode}
-        onChange={(v) => {
-          setMode(v);
-          clear();
-        }}
+        items={["Auto pick", "My numbers"]}
+        value={kind}
+        onChange={setKind}
       />
-      <Card>
-        <Heading title="History dataset" />
-        <T style={s.muted}>
-          All eligible saved draws are used. The date range may contain gaps;
-          incomplete and unsupported records are excluded.
-        </T>
-        <T weight="bold">
-          {summary.drawCount} usable draws · {draws.length} cached
-        </T>
-        <T style={s.muted}>
-          {summary.from && summary.to
-            ? `${summary.from} to ${summary.to}`
-            : "History is still being collected."}
-          {summary.excluded
-            ? ` · ${summary.excluded} conflicting draws excluded`
-            : ""}
-        </T>
-        {historyProgress && (
-          <>
+      {kind === "My numbers" ? (
+        <MyNumbers go={go} />
+      ) : (
+        <>
+          <Card>
+            <Heading title="Auto pick" />
             <T style={s.muted}>
-              API entries: {historyProgress.api.offset} /{" "}
-              {historyProgress.api.total || "discovering"}
+              The app suggests numbers for you, from past results or fully at
+              random.
             </T>
+            <Tabs
+              items={["History ideas", "Random ideas"]}
+              value={mode}
+              onChange={(v) => {
+                setMode(v);
+                clear();
+              }}
+            />
+          </Card>
+          <Card>
+            <Heading title="Your number ideas" />
             <T style={s.muted}>
-              Feed entries: {historyProgress.feed.offset} /{" "}
-              {historyProgress.feed.total || "discovering"}
+              {mode === "History ideas"
+                ? `Based on ${summary.drawCount} past draws. Endings that appeared more often are weighted higher; the two-digit prefix is random.`
+                : "Six-digit random ideas using your selected filters."}
             </T>
-            <T style={s.muted}>
-              {historyProgress.completedAt
-                ? "Archive scan complete. New draws continue to update automatically."
-                : "Older results are collected in pages while the app is open. Progress is saved when you leave."}
-            </T>
-            {historyProgress.error && (
-              <T style={{ color: C.orange }}>
-                History sync paused: {historyProgress.error}
+            <View style={s.row}>
+              {numbers.map((n) => (
+                <View
+                  key={n}
+                  style={[
+                    s.inset,
+                    { flex: 1, paddingHorizontal: 6, alignItems: "center" },
+                  ]}
+                >
+                  <T
+                    weight="bold"
+                    style={{
+                      color: C.purple,
+                      fontSize: 20,
+                      fontVariant: ["tabular-nums"],
+                    }}
+                  >
+                    {n}
+                  </T>
+                </View>
+              ))}
+            </View>
+            {ideas.map((i) => (
+              <T key={i.number} style={s.muted}>
+                {i.number} · ending {i.ending}: seen in {i.observedDraws} of{" "}
+                {i.datasetDraws} draws.
+              </T>
+            ))}
+            {generatedSignature && generatedSignature !== summary.signature && (
+              <T style={s.muted}>
+                More history is available. Generate again to include it.
               </T>
             )}
-          </>
-        )}
-        <Button
-          secondary
-          label={
-            historyLoading
-              ? "Collecting older results…"
-              : historyProgress?.completedAt
-                ? "History up to date"
-                : "Resume history collection"
-          }
-          disabled={historyLoading || !!historyProgress?.completedAt}
-          onPress={() => void syncHistory()}
-        />
-      </Card>
-      <Card>
-        <Heading title="Your number ideas" />
-        <T style={s.muted}>
-          {mode === "History ideas"
-            ? "Weighted by observed ending frequency across every usable cached draw. The two-digit prefix is random."
-            : "Six-digit random ideas using your selected filters."}
-        </T>
-        <View style={s.row}>
-          {numbers.map((n) => (
-            <View
-              key={n}
-              style={[
-                s.inset,
-                { flex: 1, paddingHorizontal: 6, alignItems: "center" },
-              ]}
-            >
-              <T
-                weight="bold"
-                style={{
-                  color: C.purple,
-                  fontSize: 20,
-                  fontVariant: ["tabular-nums"],
-                }}
-              >
-                {n}
+            {mode === "History ideas" && summary.drawCount < 20 && (
+              <T style={s.muted}>
+                Past results are still loading. History ideas will be ready soon
+                — random ideas are available now.
               </T>
-            </View>
-          ))}
-        </View>
-        {ideas.map((i) => (
-          <T key={i.number} style={s.muted}>
-            {i.number} · ending {i.ending}: seen in {i.observedDraws} of{" "}
-            {i.datasetDraws} draws.
-          </T>
-        ))}
-        {generatedSignature && generatedSignature !== summary.signature && (
-          <T style={s.muted}>
-            More history is available. Generate again to include it.
-          </T>
-        )}
-        {mode === "History ideas" && summary.drawCount < 20 && (
-          <T style={s.muted}>
-            Collect at least 20 nonconflicting draws for history-based ideas.
-            Random ideas are available now.
-          </T>
-        )}
-        <Button
-          label="Generate new ideas"
-          icon="refresh"
-          onPress={create}
-          disabled={mode === "History ideas" && summary.drawCount < 20}
-        />
-      </Card>
-      <Card>
-        <Heading title="Make it your own" />
-        <T weight="semi">Lottery history</T>
-        <Tabs
-          items={[
-            "All lotteries",
-            ...[...new Set(draws.map((d) => d.code))].sort(),
-          ]}
-          value={lottery}
-          onChange={(v) => {
-            setLottery(v);
-            clear();
-          }}
-        />
-        <T weight="semi">Odd / even mix</T>
-        <Tabs
-          items={["Any mix", "3 odd / 3 even"]}
-          value={balance}
-          onChange={(v) => {
-            setBalance(v);
-            clear();
-          }}
-        />
-        <T weight="semi">Digit sum</T>
-        <Tabs
-          items={["Any total", "25–30"]}
-          value={range}
-          onChange={(v) => {
-            setRange(v);
-            clear();
-          }}
-        />
-      </Card>
-      <Button
-        secondary
-        label="Explore past draws"
-        icon="chart"
-        onPress={() => go({ screen: "insights" })}
-      />
+            )}
+            <Button
+              label="Generate new ideas"
+              icon="refresh"
+              onPress={create}
+              disabled={mode === "History ideas" && summary.drawCount < 20}
+            />
+          </Card>
+          <Card>
+            <Heading title="Make it your own" />
+            <T weight="semi">Lottery history</T>
+            <Tabs
+              items={[
+                "All lotteries",
+                ...[...new Set(draws.map((d) => d.code))].sort(),
+              ]}
+              value={lottery}
+              onChange={(v) => {
+                setLottery(v);
+                clear();
+              }}
+            />
+            <T weight="semi">Odd / even mix</T>
+            <Tabs
+              items={["Any mix", "3 odd / 3 even"]}
+              value={balance}
+              onChange={(v) => {
+                setBalance(v);
+                clear();
+              }}
+            />
+            <T weight="semi">Digit sum</T>
+            <Tabs
+              items={["Any total", "25–30"]}
+              value={range}
+              onChange={(v) => {
+                setRange(v);
+                clear();
+              }}
+            />
+          </Card>
+          <Button
+            secondary
+            label="Explore past draws"
+            icon="chart"
+            onPress={() => go({ screen: "insights" })}
+          />
+        </>
+      )}
       <Notice>
         History describes previous draws. Every valid ticket has equal winning
         odds in a random draw. These suggestions are not predictions or a way to
         improve your odds.
       </Notice>
+    </>
+  );
+}
+function MyNumbers({ go }: { go: ScreenProps["go"] }) {
+  const { draws } = useApp();
+  const [start, setStart] = useState(""),
+    [ending, setEnding] = useState(""),
+    [lucky, setLucky] = useState(""),
+    [count, setCount] = useState("3"),
+    [numbers, setNumbers] = useState<string[]>([]);
+  const idea = {
+    start,
+    ending,
+    lucky,
+    count: count === "5" ? 5 : count === "1" ? 1 : 3,
+  };
+  const error = customIdeaError(idea);
+  const empty = !start && !ending && !lucky;
+  const seen = useMemo(
+    () =>
+      numbers.map((n) => ({ n, hits: searchFour(draws, n.slice(-4)).allTime })),
+    [numbers, draws],
+  );
+  const only = (v: string) => v.replace(/\D/g, "");
+  return (
+    <>
+      <Card>
+        <Heading title="Build from your ideas" />
+        <T style={s.muted}>
+          Use a birthday, a house number or your favourite digits. Fill any box;
+          the app fills the rest at random.
+        </T>
+        <Field
+          label="Ends with"
+          placeholder="e.g. 1508"
+          keyboardType="number-pad"
+          maxLength={6}
+          value={ending}
+          onChangeText={(v) => {
+            setEnding(only(v));
+            setNumbers([]);
+          }}
+        />
+        <Field
+          label="Starts with"
+          placeholder="e.g. 4"
+          keyboardType="number-pad"
+          maxLength={5}
+          value={start}
+          onChangeText={(v) => {
+            setStart(only(v));
+            setNumbers([]);
+          }}
+        />
+        <Field
+          label="Lucky digits to include"
+          placeholder="e.g. 7 3"
+          keyboardType="number-pad"
+          maxLength={6}
+          value={lucky}
+          onChangeText={(v) => {
+            setLucky(only(v));
+            setNumbers([]);
+          }}
+        />
+        <T weight="semi">How many numbers</T>
+        <Tabs
+          items={["1", "3", "5"]}
+          value={count}
+          onChange={(v) => {
+            setCount(v);
+            setNumbers([]);
+          }}
+        />
+        {error && <T style={{ color: C.orange }}>{error}</T>}
+        <Button
+          label="Make my numbers"
+          icon="refresh"
+          disabled={!!error || empty}
+          onPress={() => setNumbers(makeCustomNumbers(idea))}
+        />
+      </Card>
+      {numbers.length > 0 && (
+        <Card>
+          <Heading title="Your numbers" />
+          {seen.map(({ n, hits }) => (
+            <Pressable
+              key={n}
+              accessibilityRole="button"
+              onPress={() => go({ screen: "history", ending: n.slice(-4) })}
+              style={[s.inset, { gap: 2 }]}
+            >
+              <T
+                weight="bold"
+                style={{
+                  color: C.purple,
+                  fontSize: 22,
+                  letterSpacing: 2,
+                  fontVariant: ["tabular-nums"],
+                }}
+              >
+                {n}
+              </T>
+              <T style={{ fontSize: 12, color: C.muted }}>
+                {hits
+                  ? `Ending ${n.slice(-4)} appeared ${hits}× in past results ›`
+                  : `Ending ${n.slice(-4)} not seen in past results ›`}
+              </T>
+            </Pressable>
+          ))}
+          <Button
+            secondary
+            label="Make another set"
+            onPress={() => setNumbers(makeCustomNumbers(idea))}
+          />
+        </Card>
+      )}
     </>
   );
 }
@@ -565,7 +650,7 @@ export function Sum({ go }: ScreenProps) {
     </>
   );
 }
-export function Stall({ go }: ScreenProps) {
+export function Stall(_: ScreenProps) {
   const { draws } = useApp();
   const [inputs, setInputs] = useState(["", ""]);
   const [scan, setScan] = useState(false);

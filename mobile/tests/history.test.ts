@@ -130,7 +130,7 @@ test("archive requests follow provider pagination and preserve failed cursors", 
   assert.equal(result.offset, 100);
 });
 
-test("amount-only disagreement can support number frequencies but never a confirmed ticket check", () => {
+test("amount-only disagreement keeps the result usable and drops only the disputed amount", () => {
   const api = structuredClone(base);
   const feed: Draw = { ...structuredClone(base), sourceRecords: undefined };
   feed.amounts = { ...feed.amounts, third: 123 };
@@ -144,7 +144,9 @@ test("amount-only disagreement can support number frequencies but never a confir
     },
   };
   const result = mergeResults(payload([api]), payload([feed])).draws[0];
-  assert.equal(result.sourceStatus, "conflict");
+  assert.equal(result.sourceStatus, "matched");
   assert.equal(result.numbersAgree, true);
+  assert.equal(result.amounts?.third, undefined);
+  assert.equal(result.amounts?.first, base.amounts?.first);
   assert.equal(summarizeHistory([result]).drawCount, 1);
 });

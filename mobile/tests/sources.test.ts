@@ -85,7 +85,7 @@ test("rejects partial results, missing amounts, impossible dates, future draws a
 test("source agreement never promotes a public result to official", () => {
   const api = parseApiDraw(row, NOW)!;
   const result = combineSources([api], parseFeed(feed(), NOW), [
-    { code: "SM", drawNo: "SM-81", date: "2026-11-15" },
+    { name: "Samrudhi", code: "SM", drawNo: "SM-81", date: "2026-11-15" },
   ]);
   assert.equal(result.draws[0].sourceStatus, "matched");
   assert.equal(result.draws[0].verified, false);
@@ -95,7 +95,7 @@ test("source agreement never promotes a public result to official", () => {
     "provisional",
   );
 });
-test("one different digit or prize amount blocks checking; official identity mismatch also blocks", () => {
+test("one different number blocks checking but keeps agreed numbers; amount-only differences do not; identity mismatch blocks", () => {
   const api = parseApiDraw(row, NOW)!;
   const other = structuredClone(api);
   other.prizes.ninth[0] = "0000";
@@ -105,17 +105,19 @@ test("one different digit or prize amount blocks checking; official identity mis
     state: "conflict",
     wins: [],
   });
+  assert.deepEqual(result.draws[0].disputed, { ninth: 1 });
+  assert.equal(result.draws[0].prizes.ninth.length, api.prizes.ninth.length - 1);
+  assert.deepEqual(result.draws[0].prizes.first, api.prizes.first);
   const wrongAmount = structuredClone(api);
   wrongAmount.amounts!.third = 1;
-  assert.equal(
-    combineSources([api], [wrongAmount], []).draws[0].sourceStatus,
-    "conflict",
-  );
+  const amountOnly = combineSources([api], [wrongAmount], []).draws[0];
+  assert.equal(amountOnly.sourceStatus, "matched");
+  assert.equal(amountOnly.amounts?.third, undefined);
   assert.equal(
     combineSources(
       [api],
       [],
-      [{ code: "SM", drawNo: "SM-999", date: "2026-11-15" }],
+      [{ name: "Samrudhi", code: "SM", drawNo: "SM-999", date: "2026-11-15" }],
     ).draws[0].sourceStatus,
     "conflict",
   );
@@ -140,7 +142,25 @@ test("official catalogue parses identity only and does not manufacture gated PDF
     '<td>KARUNYA-10/11/2025 (KR-776)</td><td>14-11-2026</td><td><a href="#" data-item-id="private-download-id">Download</a></td>',
   );
   assert.deepEqual(rows, [
-    { code: "KR", drawNo: "KR-776", date: "2026-11-14" },
+    { name: "Karunya", code: "KR", drawNo: "KR-776", date: "2026-11-14" },
   ]);
   assert.equal("pdfUrl" in rows[0], false);
+});
+test("official catalogue reads the live portal row layout", () => {
+  const rows = parseOfficialCatalog(`<td>
+                1
+                </td>
+                <td>STHREE-SAKTHI-10/11/2025 (SS-546)</td>
+                <td>17-11-2026</td>
+                <td><a class="btn" href="#" data-item-id="x" onclick="captchaverificationaction(this);">Download</a></td>`);
+  assert.deepEqual(rows, [
+    { name: "Sthree Sakthi", code: "SS", drawNo: "SS-546", date: "2026-11-17" },
+  ]);
+});
+test("merge keeps the previous official catalogue when a refresh returns none", () => {
+  const prev = combineSources([], [], [
+    { name: "Karunya", code: "KR", drawNo: "KR-776", date: "2026-11-14" },
+  ]);
+  const next = combineSources([], [], []);
+  assert.equal(mergeResults(prev, next).officialCatalog?.length, 1);
 });

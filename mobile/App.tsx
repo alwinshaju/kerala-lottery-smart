@@ -1,4 +1,6 @@
+import { Portal } from "./src/PortalScreen";
 import React, { useEffect, useRef, useState } from "react";
+import { pingUsage } from "./src/usage";
 import {
   ActivityIndicator,
   BackHandler,
@@ -25,11 +27,17 @@ import * as Notifications from "expo-notifications";
 import { StoreProvider, useApp } from "./src/state";
 import { C, Card, Icon, T, s } from "./src/ui";
 import type { Route, Screen } from "./src/navigation";
-import { Home, Results, Detail, Schedule } from "./src/ResultsScreens";
+import {
+  Home,
+  Results,
+  Detail,
+  Schedule,
+  OfficialResults,
+} from "./src/ResultsScreens";
 import { Check, Tickets } from "./src/TicketScreens";
 import { Picks, Insights, History, Sum, Stall } from "./src/ToolScreens";
 import { Ledger, LedgerEntry } from "./src/LedgerScreens";
-import { More, Sources, Alerts } from "./src/MoreScreens";
+import { More, Alerts } from "./src/MoreScreens";
 const titles: Record<Screen, [string, string, string]> = {
   home: ["Hello, Kerala.", "Your daily lottery companion", "നമസ്കാരം, കേരളം."],
   tickets: ["My tickets", "Keep every draw in one place.", "എന്റെ ടിക്കറ്റുകൾ"],
@@ -70,10 +78,15 @@ const titles: Record<Screen, [string, string, string]> = {
   ],
   alerts: ["Result alerts", "Follow only what matters to you.", "ഫല അറിയിപ്പുകൾ"],
   sum: ["Quick sum check", "Understand your ticket number.", "അക്കങ്ങളുടെ തുക"],
-  sources: [
-    "Result sources",
-    "Automatic updates from public sources.",
-    "ഫലങ്ങളുടെ ഉറവിടങ്ങൾ",
+  portal: [
+    "Official website",
+    "Download your result PDF.",
+    "ഔദ്യോഗിക വെബ്സൈറ്റ്",
+  ],
+  official: [
+    "Official PDFs",
+    "Straight from Kerala State Lotteries.",
+    "ഔദ്യോഗിക ഫലം PDF",
   ],
 };
 export default function App() {
@@ -121,6 +134,9 @@ function Root() {
     setStack([{ screen: next }]);
     scroll.current?.scrollTo({ y: 0, animated: false });
   }
+  useEffect(() => {
+    void pingUsage();
+  }, []);
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
       if (stack.length > 1) {
@@ -205,8 +221,11 @@ function Root() {
     case "sum":
       content = <Sum {...props} />;
       break;
-    case "sources":
-      content = <Sources {...props} />;
+    case "portal":
+      content = <Portal {...props} />;
+      break;
+    case "official":
+      content = <OfficialResults {...props} />;
       break;
   }
   return (

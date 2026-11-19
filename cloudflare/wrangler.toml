@@ -1,0 +1,9 @@
+name = "lottery-official"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+workers_dev = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "lottery-official"
+database_id = "f805e2da-4636-45d3-999d-047a2ebb2f52"

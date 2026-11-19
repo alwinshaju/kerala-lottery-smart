@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Alert, Linking, Pressable, Switch, View } from "react-native";
 import { useApp } from "./state";
 import {
@@ -6,7 +6,6 @@ import {
   Button,
   C,
   Card,
-  Field,
   Heading,
   Icon,
   Notice,
@@ -14,11 +13,9 @@ import {
   s,
   type IconName,
 } from "./ui";
-import type { ScreenProps, Screen } from "./navigation";
+import type { ScreenProps } from "./navigation";
 import { ALL_LOTTERIES } from "../../lib/schedule";
-import { RESULT_SOURCES } from "./results/sources";
 import { configureResultAlerts } from "./notificationsDevice";
-import { openURL } from "./ResultsScreens";
 export function More({ go }: ScreenProps) {
   const { preferences: p, setPreferences } = useApp();
   const ml = p.language === "ml";
@@ -46,9 +43,15 @@ export function More({ go }: ScreenProps) {
               screen: "insights",
             },
             {
+              title: "Official result PDFs",
+              body: "Download from Kerala State Lotteries",
+              icon: "file",
+              screen: "official",
+            },
+            {
               title: "Number history",
               body: "Look up a four-digit ending",
-              icon: "results",
+              icon: "history",
               screen: "history",
             },
             {
@@ -113,22 +116,16 @@ export function More({ go }: ScreenProps) {
           icon="bell"
           onPress={() => go({ screen: "alerts" })}
         />
-        <MenuRow
-          title="Result sources"
-          body="Automatic results · no server setup"
-          icon="globe"
-          onPress={() => go({ screen: "sources" })}
-        />
       </Card>
       <Card>
         <MenuRow
-          title="How results are sourced"
+          title="About results"
           body="Official and provisional labels explained"
           icon="info"
           onPress={() =>
             Alert.alert(
-              "Results & sources",
-              "The app fetches results directly from public sources and compares available prize lists. Matching two public sources is not official verification. The official LOTIS catalogue confirms draw identity, not the prize numbers. Government PDF downloads may require a CAPTCHA. Confirm claims with the original Gazette. No tickets are sold here.",
+              "About results",
+              "Results update automatically. Results marked Provisional have not yet been confirmed by the official Gazette. Always confirm a prize with the official Kerala Gazette before claiming. No tickets are sold here.",
             )
           }
         />
@@ -181,77 +178,7 @@ function MenuRow({
     </Pressable>
   );
 }
-export function Sources({ go }: ScreenProps) {
-  const { payload, loading, refresh } = useApp();
-  return (
-    <>
-      <Card>
-        <Heading title="Automatic result sources" />
-        <T>
-          Results load directly on your phone. No website address, account, API
-          key or custom server is required.
-        </T>
-        <T style={s.muted}>
-          Last fetch:{" "}
-          {payload
-            ? new Date(payload.updatedAt).toLocaleString()
-            : "Not loaded yet"}
-        </T>
-        <Button
-          label={loading ? "Refreshing…" : "Refresh results"}
-          disabled={loading}
-          onPress={() => void refresh()}
-        />
-      </Card>
-      {Object.values(RESULT_SOURCES).map((source) => (
-        <Card key={source.name}>
-          <T weight="bold">{source.name}</T>
-          <T style={s.muted}>
-            {source === RESULT_SOURCES.official
-              ? "Official draw catalogue and original documents. The download flow may require a CAPTCHA."
-              : "Public publisher. Its results are provisional until checked against the official Gazette."}
-          </T>
-          <Button
-            secondary
-            label="Visit source"
-            onPress={() => openURL(source.url)}
-          />
-        </Card>
-      ))}
-      {payload?.warnings?.map((w) => (
-        <Card key={w}>
-          <T style={{ color: C.orange }}>{w}</T>
-        </Card>
-      ))}
-      <Card>
-        <Heading title="What the labels mean" />
-        <T>
-          2 SOURCES: all prize lists and available amounts match two public
-          publishers. They may share an upstream source; this is not government
-          certification.
-        </T>
-        <T>
-          PUBLIC: one complete public result is available. It remains
-          unverified.
-        </T>
-        <T>
-          SOURCE CONFLICT: sources disagree or the draw identity conflicts with
-          the official catalogue. Ticket checking is paused for that draw.
-        </T>
-        <T>
-          OFFICIAL: reserved for a result actually checked against an official
-          document. A listing entry alone never receives this label.
-        </T>
-      </Card>
-      <Notice>
-        Incomplete, malformed and future results are rejected. If a source
-        fails, previously fetched results remain labelled as cached. Official
-        PDFs and the Gazette take priority.
-      </Notice>
-    </>
-  );
-}
-export function Alerts({ go }: ScreenProps) {
+export function Alerts(_: ScreenProps) {
   const { preferences: p, setPreferences } = useApp();
   const [follows, setFollows] = useState(p.follows);
   const [busy, setBusy] = useState(false);
@@ -340,13 +267,6 @@ export function Alerts({ go }: ScreenProps) {
           void Linking.openSettings();
         }}
       />
-      {process.env.EXPO_PUBLIC_TELEGRAM_URL && (
-        <Button
-          secondary
-          label="Join the Telegram channel"
-          onPress={() => openURL(process.env.EXPO_PUBLIC_TELEGRAM_URL!)}
-        />
-      )}
       <Notice>
         No server or push credentials are required. The app checks for new
         results while open and requests background checks at a minimum interval

@@ -27,6 +27,7 @@ export const C = {
 export const icons = {
   ticket: require("../assets/figma/e00ac.svg"),
   results: require("../assets/figma/81f74.svg"),
+  history: require("../assets/figma/history.svg"),
   scan: require("../assets/figma/77414.svg"),
   vault: require("../assets/figma/e538c.svg"),
   spark: require("../assets/figma/89cd1.svg"),

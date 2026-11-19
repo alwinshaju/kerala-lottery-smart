@@ -14,7 +14,8 @@ export type Screen =
   | "stall"
   | "alerts"
   | "sum"
-  | "sources";
+  | "official"
+  | "portal";
 export interface Route {
   screen: Screen;
   drawId?: string;

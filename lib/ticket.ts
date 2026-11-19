@@ -1,4 +1,4 @@
-import type { Draw, Tier, TicketWin } from "./types";
+import type { Draw, Tier } from "./types";
 import { TIER_AMOUNTS } from "./payout";
 import { isTicketWin } from "./types";
 

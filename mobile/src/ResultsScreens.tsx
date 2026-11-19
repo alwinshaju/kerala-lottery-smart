@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Alert, Linking, Pressable, Share, View } from "react-native";
 import { useApp } from "./state";
 import {
@@ -14,10 +14,20 @@ import {
   s,
 } from "./ui";
 import type { ScreenProps } from "./navigation";
-import type { Draw } from "../../lib/types";
+import type { Draw, OfficialCatalogEntry } from "../../lib/types";
 import { TIER_ORDER, ordinal } from "../../lib/ticket";
 import { inr } from "../../lib/payout";
 import { WEEKLY, isoDate, nowIST, lotteryForWeekday } from "../../lib/schedule";
+export const OFFICIAL_PORTAL =
+  "https://www.lotteryagent.kerala.gov.in/result/public/";
+/** Opens the official portal inside the app. The user answers the site's
+ * own maths question; the app never skips it. */
+export function openOfficialPdf(
+  go: ScreenProps["go"],
+  entry?: { drawNo: string; date: string },
+) {
+  go({ screen: "portal", ticket: entry?.drawNo, date: entry?.date });
+}
 export function openURL(url: string) {
   if (!/^https?:\/\//i.test(url)) {
     Alert.alert("Unavailable", "This link is not a valid web address.");
@@ -35,15 +45,18 @@ export function DrawCard({
   onPress: () => void;
 }) {
   const { payload } = useApp();
-  if (draw.sourceStatus === "conflict")
+  const partial = draw.sourceStatus === "conflict" && !!draw.disputed;
+  if (draw.sourceStatus === "conflict" && !partial)
     return (
       <Card>
         <Heading title={`${draw.name} · ${draw.drawNo}`} />
         <T style={{ color: C.orange }}>
-          SOURCE CONFLICT · Ticket checking paused
+          BEING CONFIRMED · Ticket checking paused
         </T>
-        <T style={s.muted}>{draw.sourceNote ?? "Public sources disagree."}</T>
-        <Button secondary label="Review sources" onPress={onPress} />
+        <T style={s.muted}>
+          This result is still being confirmed. Please check again shortly.
+        </T>
+        <Button secondary label="View details" onPress={onPress} />
       </Card>
     );
   return (
@@ -61,16 +74,25 @@ export function DrawCard({
               ? "SAMPLE"
               : draw.verified
                 ? "OFFICIAL"
-                : draw.sourceStatus === "matched"
-                  ? "2 SOURCES"
-                  : "PUBLIC"}
+                : "PROVISIONAL"}
           </T>
         </View>
       </View>
+      {partial && (
+        <T style={{ color: C.orange }}>
+          A few numbers are still being confirmed · ticket checking paused
+        </T>
+      )}
       <View style={s.between}>
         <View style={{ flex: 1 }}>
           <T style={s.label}>FIRST PRIZE</T>
-          <T weight="extra" style={{ fontSize: 28, lineHeight: 40 }}>
+          <T
+            weight="extra"
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.6}
+            style={{ fontSize: 28, lineHeight: 40 }}
+          >
             {draw.amounts?.first ? inr(draw.amounts.first) : "See Gazette"}
           </T>
         </View>
@@ -117,7 +139,14 @@ export function Home({ go }: ScreenProps) {
         onPress={() => go({ screen: "check" })}
       />
       <View
-        style={[s.row, { justifyContent: "space-between", paddingVertical: 4 }]}
+        style={[
+          s.row,
+          {
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            paddingVertical: 4,
+          },
+        ]}
       >
         {(
           [
@@ -143,11 +172,11 @@ export function Home({ go }: ScreenProps) {
               colors: ["#D7CAFA", "#BBA7E6"],
             },
             {
-              label: "More",
-              ml: "കൂടുതൽ",
-              icon: "grid",
-              screen: "more",
-              colors: ["#FFFFFF", "#DFD5F3"],
+              label: "Stall assistant",
+              ml: "സ്റ്റാൾ സഹായി",
+              icon: "shop",
+              screen: "stall",
+              colors: ["#FFE3D6", "#F2B39A"],
             },
           ] as const
         ).map((x) => (
@@ -158,7 +187,11 @@ export function Home({ go }: ScreenProps) {
             accessibilityRole="button"
           >
             <QuickTile colors={x.colors} icon={x.icon} />
-            <T weight="semi" style={{ fontSize: 12 }}>
+            <T
+              weight="semi"
+              numberOfLines={2}
+              style={{ fontSize: 12, textAlign: "center" }}
+            >
               {ml ? x.ml : x.label}
             </T>
           </Pressable>
@@ -191,8 +224,8 @@ export function Home({ go }: ScreenProps) {
               : "No previous results loaded"}
           </T>
           <T style={s.muted}>
-            Pull down to refresh. Results appear after publication by the
-            source.
+            Pull down to refresh. Results appear shortly after the draw is
+            published.
           </T>
         </Card>
       )}
@@ -297,6 +330,20 @@ export function Results({ go }: ScreenProps) {
   const [code, setCode] = useState("All");
   return (
     <>
+      <Card>
+        <Pressable
+          accessibilityRole="button"
+          style={s.row}
+          onPress={() => go({ screen: "official" })}
+        >
+          <Icon name="file" />
+          <View style={{ flex: 1 }}>
+            <T weight="semi">Official result PDFs</T>
+            <T style={s.muted}>Every draw published by Kerala State Lotteries</T>
+          </View>
+          <T style={{ color: C.purple, fontSize: 24 }}>›</T>
+        </Pressable>
+      </Card>
       <Tabs
         items={["All", ...WEEKLY.map((l) => l.code), "Bumper"]}
         value={code}
@@ -320,7 +367,7 @@ export function Results({ go }: ScreenProps) {
       {!draws.length && (
         <Card>
           <T>
-            No complete results loaded yet. Pull down to refresh public sources.
+            No complete results loaded yet. Pull down to refresh.
           </T>
         </Card>
       )}
@@ -328,30 +375,43 @@ export function Results({ go }: ScreenProps) {
   );
 }
 export function Detail({ route, go }: ScreenProps) {
-  const { draws, payload } = useApp();
+  const { draws, payload, loading, refresh } = useApp();
   const d = draws.find((d) => d.id === route.drawId);
+  const official = d
+    ? payload?.officialCatalog?.find(
+        (e) => e.code === d.code && e.date === d.date,
+      )
+    : undefined;
   if (!d)
     return (
       <Card>
         <T>This draw is not in the loaded results.</T>
       </Card>
     );
-  if (d.sourceStatus === "conflict")
+  const partial = d.sourceStatus === "conflict" && !!d.disputed;
+  const disputedCount = Object.values(d.disputed ?? {}).reduce(
+    (a, b) => a + (b ?? 0),
+    0,
+  );
+  if (d.sourceStatus === "conflict" && !partial)
     return (
       <Card>
-        <Heading title="Sources disagree" />
-        <T>{d.sourceNote}</T>
+        <Heading title="Result being confirmed" />
+        <T>
+          This result is still being confirmed, so ticket checking is paused.
+          Please refresh again shortly.
+        </T>
         <Button
           secondary
-          label="Review result sources"
-          onPress={() => go({ screen: "sources" })}
+          label={loading ? "Refreshing…" : "Refresh results"}
+          disabled={loading}
+          onPress={() => void refresh()}
         />
         <Button
           secondary
-          label="Open official results portal"
-          onPress={() =>
-            openURL("https://www.lotteryagent.kerala.gov.in/result/public/")
-          }
+          label="Download official PDF"
+          icon="file"
+          onPress={() => openOfficialPdf(go, official ?? d)}
         />
       </Card>
     );
@@ -359,15 +419,37 @@ export function Detail({ route, go }: ScreenProps) {
     <>
       <DrawCard
         draw={d}
-        onPress={() => go({ screen: "check", drawId: d.id })}
+        onPress={() =>
+          partial ? undefined : go({ screen: "check", drawId: d.id })
+        }
       />
-      <View style={s.row}>
-        <View style={{ flex: 1 }}>
+      {partial && (
+        <Card>
+          <Heading title="Some numbers being confirmed" />
+          <T>
+            {disputedCount === 1
+              ? "1 number differs between results publishers"
+              : `${disputedCount} numbers differ between results publishers`}
+            . All other numbers are shown below. Ticket checking for this draw
+            is paused until it is confirmed.
+          </T>
           <Button
-            label="Check a ticket"
-            onPress={() => go({ screen: "check", drawId: d.id })}
+            secondary
+            label={loading ? "Refreshing…" : "Refresh results"}
+            disabled={loading}
+            onPress={() => void refresh()}
           />
-        </View>
+        </Card>
+      )}
+      <View style={s.row}>
+        {!partial && (
+          <View style={{ flex: 1 }}>
+            <Button
+              label="Check a ticket"
+              onPress={() => go({ screen: "check", drawId: d.id })}
+            />
+          </View>
+        )}
         <View style={{ flex: 1 }}>
           <Button
             secondary
@@ -382,21 +464,19 @@ export function Detail({ route, go }: ScreenProps) {
       </View>
       <Card>
         <T weight="semi">
-          {d.sourceStatus === "matched"
-            ? "Matched on two public sources · official verification pending"
-            : "Public source · official verification pending"}
+          {d.verified
+            ? d.officialCheck === "corrected"
+              ? "Official result · corrected using the official PDF"
+              : d.officialCheck === "matched"
+                ? "Official result · matches the automatic results"
+                : "Official result · keep your ticket for the claim"
+            : "Provisional result · confirm with the official Gazette"}
         </T>
-        {d.sources?.map((source) => (
-          <Pressable key={source.url} onPress={() => openURL(source.url)}>
-            <T style={s.link}>{source.name} ↗</T>
-          </Pressable>
-        ))}
         <Button
           secondary
-          label="Open official results portal"
-          onPress={() =>
-            openURL("https://www.lotteryagent.kerala.gov.in/result/public/")
-          }
+          label="Download official PDF"
+          icon="file"
+          onPress={() => openOfficialPdf(go, official ?? d)}
         />
       </Card>
       {d.pdfUrl && (
@@ -411,8 +491,17 @@ export function Detail({ route, go }: ScreenProps) {
         <Card key={tier}>
           <Heading
             title={ordinal[tier] + " prize"}
-            action={d.amounts?.[tier] ? inr(d.amounts[tier]!) : undefined}
+            action={
+              d.amounts?.[tier] ? inr(d.amounts[tier]!) : "Amount: see Gazette"
+            }
           />
+          {!!d.disputed?.[tier] && (
+            <T style={{ color: C.orange, fontSize: 12 }}>
+              {d.disputed[tier] === 1
+                ? "1 number still being confirmed"
+                : `${d.disputed[tier]} numbers still being confirmed`}
+            </T>
+          )}
           <View style={[s.row, { flexWrap: "wrap" }]}>
             {d.prizes[tier].map((w, i) => (
               <View key={i} style={s.inset}>
@@ -489,5 +578,129 @@ export function Schedule({ go }: ScreenProps) {
         onPress={() => go({ screen: "alerts" })}
       />
     </>
+  );
+}
+
+const PAGE = 30;
+function displayDate(iso: string) {
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+export function OfficialResults({ go }: ScreenProps) {
+  const { payload, draws, loading, refresh } = useApp();
+  const catalog = payload?.officialCatalog ?? [];
+  const names = [...new Set(catalog.map((e) => e.name))];
+  const [name, setName] = useState("All");
+  const [shown, setShown] = useState(PAGE);
+  const list = catalog.filter((e) => name === "All" || e.name === name);
+  return (
+    <>
+      <Card>
+        <Heading title="Official result PDFs" />
+        <T style={s.muted}>
+          Draws published on the Kerala State Lotteries website. Tap a draw to
+          download its official PDF from the government site.
+        </T>
+      </Card>
+      {names.length > 1 && (
+        <Tabs
+          items={["All", ...names]}
+          value={name}
+          onChange={(v) => {
+            setName(v);
+            setShown(PAGE);
+          }}
+        />
+      )}
+      {list.slice(0, shown).map((e) => (
+        <OfficialRow
+          key={e.drawNo}
+          entry={e}
+          draw={draws.find((d) => d.code === e.code && d.date === e.date)}
+          go={go}
+        />
+      ))}
+      {list.length > shown && (
+        <Button
+          secondary
+          label={`Show more (${list.length - shown} left)`}
+          onPress={() => setShown((n) => n + PAGE)}
+        />
+      )}
+      {!catalog.length && (
+        <Card>
+          <T weight="bold">Official list not loaded yet</T>
+          <T style={s.muted}>
+            The government website may be busy. Try again, or open it directly.
+          </T>
+          <Button
+            label={loading ? "Refreshing…" : "Refresh"}
+            icon="refresh"
+            disabled={loading}
+            onPress={() => void refresh()}
+          />
+          <Button
+            secondary
+            label="Open official website"
+            onPress={() => openOfficialPdf(go)}
+          />
+        </Card>
+      )}
+      <Notice>
+        PDFs are served by the Kerala State Lotteries website, which asks a
+        simple maths question before each download.
+      </Notice>
+    </>
+  );
+}
+function OfficialRow({
+  entry,
+  draw,
+  go,
+}: {
+  entry: OfficialCatalogEntry;
+  draw?: Draw;
+  go: ScreenProps["go"];
+}) {
+  return (
+    <Card>
+      <View style={s.between}>
+        <View style={{ flex: 1 }}>
+          <T weight="bold" style={{ fontSize: 17 }}>
+            {entry.name} · {entry.drawNo}
+          </T>
+          <T style={{ fontSize: 12, color: C.muted }}>
+            {displayDate(entry.date)}
+          </T>
+        </View>
+        <View style={s.badge}>
+          <T weight="semi" style={s.badgeText}>
+            OFFICIAL
+          </T>
+        </View>
+      </View>
+      <View style={s.row}>
+        {draw && (
+          <View style={{ flex: 1 }}>
+            <Button
+              secondary
+              label="View result"
+              onPress={() => go({ screen: "detail", drawId: draw.id })}
+            />
+          </View>
+        )}
+        <View style={{ flex: 1 }}>
+          <Button
+            label="Download PDF"
+            onPress={() =>
+              openOfficialPdf(go, {
+                drawNo: entry.drawNo,
+                date: displayDate(entry.date),
+              })
+            }
+          />
+        </View>
+      </View>
+    </Card>
   );
 }

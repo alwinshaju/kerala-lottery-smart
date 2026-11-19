@@ -36,6 +36,11 @@ export interface Draw {
   sourceNote?: string;
   officialDrawNo?: string;
   numbersAgree?: boolean;
+  /** Set when an admin-published official PDF exists: did the public results agree with it? */
+  officialCheck?: "matched" | "corrected";
+  /** Tiers where the public sources list different numbers, with how many
+   * numbers are still unconfirmed. Only agreed numbers are kept in `prizes`. */
+  disputed?: Partial<Record<Tier, number>>;
   sourceRecords?: Partial<
     Record<
       "api" | "feed",
@@ -69,4 +74,12 @@ export interface ResultsPayload {
   source: "supabase" | "demo" | "public";
   updatedAt: string;
   warnings?: string[];
+  /** Public draw list from the official Kerala portal (identity only, no PDF links). */
+  officialCatalog?: OfficialCatalogEntry[];
+}
+export interface OfficialCatalogEntry {
+  name: string;
+  code: string;
+  drawNo: string;
+  date: string;
 }
