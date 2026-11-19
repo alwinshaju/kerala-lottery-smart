@@ -26,6 +26,36 @@ export default {
       const rows = await env.DB.prepare("SELECT data FROM draws ORDER BY date DESC LIMIT 100").all<{ data: string }>();
       return json({ draws: (rows.results ?? []).map((r) => JSON.parse(r.data)) });
     }
+    if (url.pathname === "/api/admin/stats" && req.method === "GET") {
+      const one = async <T,>(sql: string, ...a: unknown[]) => (await env.DB.prepare(sql).bind(...a).first<T>()) as T;
+      const day = (n: number) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
+      const [total, today, week, month, newWeek, draws, last] = await Promise.all([
+        one<{ n: number }>("SELECT COUNT(*) n FROM devices"),
+        one<{ n: number }>("SELECT COUNT(*) n FROM device_days WHERE day = ?", day(0)),
+        one<{ n: number }>("SELECT COUNT(DISTINCT id) n FROM device_days WHERE day >= ?", day(6)),
+        one<{ n: number }>("SELECT COUNT(DISTINCT id) n FROM device_days WHERE day >= ?", day(29)),
+        one<{ n: number }>("SELECT COUNT(*) n FROM devices WHERE first_seen >= ?", day(6)),
+        one<{ n: number; codes: number }>("SELECT COUNT(*) n, COUNT(DISTINCT code) codes FROM draws"),
+        one<{ at: string | null }>("SELECT MAX(published_at) at FROM draws"),
+      ]);
+      const series = (await env.DB.prepare(
+        "SELECT day, COUNT(*) n FROM device_days WHERE day >= ? GROUP BY day",
+      ).bind(day(13)).all<{ day: string; n: number }>()).results ?? [];
+      const by = new Map(series.map((r) => [r.day, r.n]));
+      const joined = (await env.DB.prepare(
+        "SELECT substr(first_seen,1,10) day, COUNT(*) n FROM devices WHERE first_seen >= ? GROUP BY day",
+      ).bind(day(13)).all<{ day: string; n: number }>()).results ?? [];
+      const jb = new Map(joined.map((r) => [r.day, r.n]));
+      const days = Array.from({ length: 14 }, (_, i) => day(13 - i)).map((d) => ({ day: d, active: by.get(d) ?? 0, joined: jb.get(d) ?? 0 }));
+      const versions = (await env.DB.prepare(
+        "SELECT COALESCE(app_version,'?') v, COUNT(*) n FROM devices GROUP BY v ORDER BY n DESC LIMIT 6",
+      ).all<{ v: string; n: number }>()).results ?? [];
+      return json({
+        users: { total: total.n, activeToday: today.n, active7: week.n, active30: month.n, new7: newWeek.n },
+        content: { draws: draws.n, lotteries: draws.codes, lastPublished: last.at },
+        days, versions, email: user.email,
+      });
+    }
     if (url.pathname === "/api/admin/preview" && req.method === "POST") {
       const { text } = (await req.json()) as { text?: string };
       return text ? json(parsePdfText(text)) : json({ error: "No text" }, 400);

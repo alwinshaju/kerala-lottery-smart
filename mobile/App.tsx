@@ -1,5 +1,6 @@
 import { Portal } from "./src/PortalScreen";
 import React, { useEffect, useRef, useState } from "react";
+import { pingUsage } from "./src/usage";
 import {
   ActivityIndicator,
   BackHandler,
@@ -133,6 +134,9 @@ function Root() {
     setStack([{ screen: next }]);
     scroll.current?.scrollTo({ y: 0, animated: false });
   }
+  useEffect(() => {
+    void pingUsage();
+  }, []);
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
       if (stack.length > 1) {
