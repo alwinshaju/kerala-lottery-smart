@@ -7,23 +7,92 @@ import type { ResultsPayload } from "../../lib/types";
 import { isoDate, nowIST } from "../../lib/schedule";
 import { fetchPublicResults } from "./results/sources";
 import { readResultsCache, saveResultsCache } from "./results/storage";
+import { ticketWinAlerts } from "./ticketWins";
+import { buildReminder } from "./dailyReminder";
 
 const TASK = "lottery-public-result-refresh";
 const SETTINGS = "lottery.local-alerts.v2";
+const STORE = "lottery.native.v1";
+const WIN_SEEN = "lottery.ticket-wins.v1";
+const REMINDER_ID = "lottery.reminder.id";
 interface AlertSettings {
   enabled: boolean;
   follows: string[];
   since: string;
   seen: string[];
+  /** Daily 9 AM reminder with a hot pick. On unless turned off. */
+  reminder?: boolean;
 }
 async function settings(): Promise<AlertSettings | null> {
   const raw = await AsyncStorage.getItem(SETTINGS);
   return raw ? JSON.parse(raw) : null;
 }
+/** Tells the user when a saved ticket wins a verified result. Tickets stay on the phone. */
+async function notifyTicketWins(payload: ResultsPayload) {
+  try {
+    const raw = await AsyncStorage.getItem(STORE);
+    const tickets = raw ? (JSON.parse(raw).tickets ?? []) : [];
+    if (!Array.isArray(tickets) || !tickets.length) return;
+    const seenRaw = await AsyncStorage.getItem(WIN_SEEN);
+    const announced = new Set<string>(seenRaw ? JSON.parse(seenRaw) : []);
+    const alerts = ticketWinAlerts(tickets, payload.draws, announced);
+    for (const a of alerts) {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: a.title,
+          body: a.body,
+          data: { drawId: a.drawId },
+          sound: "default",
+          ...(Platform.OS === "android" ? { channelId: "results" } : {}),
+        },
+        trigger: null,
+      });
+      announced.add(a.key);
+    }
+    if (alerts.length) await AsyncStorage.setItem(WIN_SEEN, JSON.stringify([...announced]));
+  } catch {
+    /* a failed check must not stop the result alerts */
+  }
+}
+async function cancelReminder() {
+  const id = await AsyncStorage.getItem(REMINDER_ID);
+  if (id) await Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
+  await AsyncStorage.removeItem(REMINDER_ID);
+}
+/** Replaces the pending reminder with the next one, using the latest history. */
+async function scheduleReminder(draws: ResultsPayload["draws"]) {
+  try {
+    await cancelReminder();
+    const r = buildReminder(draws);
+    if (Platform.OS === "android")
+      await Notifications.setNotificationChannelAsync("reminders", {
+        name: "Daily reminder",
+        importance: Notifications.AndroidImportance.DEFAULT,
+      });
+    const id = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: r.title,
+        body: r.body,
+        sound: "default",
+        ...(Platform.OS === "android" ? { channelId: "reminders" } : {}),
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: r.fireAt,
+        ...(Platform.OS === "android" ? { channelId: "reminders" } : {}),
+      },
+    });
+    await AsyncStorage.setItem(REMINDER_ID, id);
+  } catch {
+    /* a missed reminder must not stop the result alerts */
+  }
+}
 export async function notifyNewResults(payload: ResultsPayload) {
   if (Platform.OS === "web") return;
   const config = await settings();
   if (!config?.enabled) return;
+  await notifyTicketWins(payload);
+  if (config.reminder !== false) await scheduleReminder(payload.draws);
   const seen = new Set(config.seen);
   const wanted = (d: ResultsPayload["draws"][number]) =>
     d.sourceStatus !== "conflict" &&
@@ -91,11 +160,13 @@ if (Platform.OS !== "web" && !TaskManager.isTaskDefined(TASK)) {
 export async function configureResultAlerts(
   enabled: boolean,
   follows: string[],
+  reminder = true,
 ): Promise<{ background: boolean }> {
   if (Platform.OS === "web")
     throw new Error("Use the Android or iPhone app to enable device alerts.");
   if (!enabled) {
     await AsyncStorage.removeItem(SETTINGS);
+    await cancelReminder();
     if (await TaskManager.isTaskRegisteredAsync(TASK))
       await BackgroundTask.unregisterTaskAsync(TASK);
     return { background: false };
@@ -122,6 +193,7 @@ export async function configureResultAlerts(
     JSON.stringify({
       enabled: true,
       follows,
+      reminder,
       since: old?.since ?? isoDate(nowIST()),
       seen:
         old?.seen ??
@@ -131,6 +203,8 @@ export async function configureResultAlerts(
         [],
     } satisfies AlertSettings),
   );
+  if (reminder) await scheduleReminder(cached?.draws ?? []);
+  else await cancelReminder();
   try {
     if (
       (await BackgroundTask.getStatusAsync()) !==

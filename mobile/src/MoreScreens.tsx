@@ -175,14 +175,15 @@ function MenuRow({
 export function Alerts(_: ScreenProps) {
   const { preferences: p, setPreferences } = useApp();
   const [follows, setFollows] = useState(p.follows);
+  const [reminder, setReminder] = useState(p.dailyReminder);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   async function toggle(remove = false) {
     setBusy(true);
     setError("");
     try {
-      const status = await configureResultAlerts(!remove, follows);
-      setPreferences({ follows, alertsEnabled: !remove });
+      const status = await configureResultAlerts(!remove, follows, reminder);
+      setPreferences({ follows, alertsEnabled: !remove, dailyReminder: reminder });
       Alert.alert(
         remove ? "Alerts turned off" : "Result alerts enabled",
         remove
@@ -210,6 +211,24 @@ export function Alerts(_: ScreenProps) {
           Choose the lotteries you follow. Leave all unchecked to receive every
           published result.
         </T>
+      </Card>
+      <Heading title="Daily reminder" />
+      <Card>
+        <View style={s.between}>
+          <View style={{ flex: 1 }}>
+            <T weight="semi">9 AM reminder</T>
+            <T style={s.muted}>
+              Today's lottery and a hot pick ending from past results, so you
+              don't forget your ticket. Every number has equal odds.
+            </T>
+          </View>
+          <Switch
+            accessibilityLabel="Daily reminder"
+            value={reminder}
+            onValueChange={setReminder}
+            trackColor={{ true: C.purple }}
+          />
+        </View>
       </Card>
       <Heading title="Follow lotteries" />
       <Card>
