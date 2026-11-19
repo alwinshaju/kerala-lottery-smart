@@ -385,6 +385,9 @@ export function Insights({ go }: ScreenProps) {
       />
       <T style={s.muted}>
         Calculated from {draws.length} loaded draws
+        {draws.some((d) => d.source === "official_pdf")
+          ? ` (${draws.filter((d) => d.source === "official_pdf").length} checked against the official PDF)`
+          : ""}
         {payload?.source === "demo" ? " · SAMPLE DATA" : ""}.
       </T>
       <Tabs
