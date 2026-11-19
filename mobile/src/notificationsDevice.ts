@@ -7,9 +7,12 @@ import type { ResultsPayload } from "../../lib/types";
 import { isoDate, nowIST } from "../../lib/schedule";
 import { fetchPublicResults } from "./results/sources";
 import { readResultsCache, saveResultsCache } from "./results/storage";
+import { ticketWinAlerts } from "./ticketWins";
 
 const TASK = "lottery-public-result-refresh";
 const SETTINGS = "lottery.local-alerts.v2";
+const STORE = "lottery.native.v1";
+const WIN_SEEN = "lottery.ticket-wins.v1";
 interface AlertSettings {
   enabled: boolean;
   follows: string[];
@@ -20,10 +23,38 @@ async function settings(): Promise<AlertSettings | null> {
   const raw = await AsyncStorage.getItem(SETTINGS);
   return raw ? JSON.parse(raw) : null;
 }
+/** Tells the user when a saved ticket wins a verified result. Tickets stay on the phone. */
+async function notifyTicketWins(payload: ResultsPayload) {
+  try {
+    const raw = await AsyncStorage.getItem(STORE);
+    const tickets = raw ? (JSON.parse(raw).tickets ?? []) : [];
+    if (!Array.isArray(tickets) || !tickets.length) return;
+    const seenRaw = await AsyncStorage.getItem(WIN_SEEN);
+    const announced = new Set<string>(seenRaw ? JSON.parse(seenRaw) : []);
+    const alerts = ticketWinAlerts(tickets, payload.draws, announced);
+    for (const a of alerts) {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: a.title,
+          body: a.body,
+          data: { drawId: a.drawId },
+          sound: "default",
+          ...(Platform.OS === "android" ? { channelId: "results" } : {}),
+        },
+        trigger: null,
+      });
+      announced.add(a.key);
+    }
+    if (alerts.length) await AsyncStorage.setItem(WIN_SEEN, JSON.stringify([...announced]));
+  } catch {
+    /* a failed check must not stop the result alerts */
+  }
+}
 export async function notifyNewResults(payload: ResultsPayload) {
   if (Platform.OS === "web") return;
   const config = await settings();
   if (!config?.enabled) return;
+  await notifyTicketWins(payload);
   const seen = new Set(config.seen);
   const wanted = (d: ResultsPayload["draws"][number]) =>
     d.sourceStatus !== "conflict" &&
