@@ -25,13 +25,31 @@ export async function notifyNewResults(payload: ResultsPayload) {
   const config = await settings();
   if (!config?.enabled) return;
   const seen = new Set(config.seen);
-  const fresh = payload.draws.filter(
-    (d) =>
-      !seen.has(d.id) &&
-      d.sourceStatus !== "conflict" &&
-      d.date >= config.since &&
-      (!config.follows.length || config.follows.includes(d.code)),
+  const wanted = (d: ResultsPayload["draws"][number]) =>
+    d.sourceStatus !== "conflict" &&
+    d.date >= config.since &&
+    (!config.follows.length || config.follows.includes(d.code));
+  // An official PDF published by the admin gets its own alert, even if the draw was seen before.
+  const official = payload.draws.filter(
+    (d) => d.source === "official_pdf" && wanted(d) && !seen.has(`official:${d.id}`),
   );
+  const fresh = payload.draws.filter(
+    (d) => d.source !== "official_pdf" && !seen.has(d.id) && wanted(d),
+  );
+  for (const d of official) {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "Official result published",
+        body: `${d.name} ${d.drawNo} · ${d.date}. Checked against the official PDF.`,
+        data: { drawId: d.id },
+        sound: "default",
+        ...(Platform.OS === "android" ? { channelId: "results" } : {}),
+      },
+      trigger: null,
+    });
+    seen.add(`official:${d.id}`);
+    seen.add(d.id);
+  }
   for (const d of fresh) {
     await Notifications.scheduleNotificationAsync({
       content: {
