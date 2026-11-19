@@ -9,6 +9,8 @@ export interface HistoryEnding {
 export interface HistorySummary {
   drawCount: number;
   excluded: number;
+  /** Draws in this history that were checked against the official PDF. */
+  officialDraws: number;
   from?: string;
   to?: string;
   endings: HistoryEnding[];
@@ -51,6 +53,7 @@ export function summarizeHistory(input: Draw[]): HistorySummary {
   return {
     drawCount: eligible.length,
     excluded: input.length - eligible.length,
+    officialDraws: eligible.filter((d) => d.source === "official_pdf").length,
     from: dates[0],
     to: dates.at(-1),
     endings: [...map.entries()]

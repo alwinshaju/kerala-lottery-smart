@@ -150,3 +150,11 @@ test("amount-only disagreement keeps the result usable and drops only the disput
   assert.equal(result.amounts?.first, base.amounts?.first);
   assert.equal(summarizeHistory([result]).drawCount, 1);
 });
+
+test("history counts draws checked against the official PDF", () => {
+  const base = { prizes: { first: [], second: [], third: [], consolation: [], fourth: [], fifth: [], sixth: [], seventh: [], eighth: [], ninth: [] } };
+  const mk = (id: string, source: string) => ({ ...base, id, code: "DL", name: "x", drawNo: id, date: "2026-11-1" + id.slice(-1), source }) as unknown as Draw;
+  const s = summarizeHistory([mk("a1", "official_pdf"), mk("a2", "api")]);
+  assert.equal(s.officialDraws, 1);
+  assert.equal(s.drawCount, 2);
+});
