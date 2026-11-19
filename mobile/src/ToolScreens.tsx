@@ -119,7 +119,7 @@ export function Picks({ go }: ScreenProps) {
             <Heading title="Your number ideas" />
             <T style={s.muted}>
               {mode === "History ideas"
-                ? `Based on ${summary.drawCount} past draws. Endings that appeared more often are weighted higher; the two-digit prefix is random.`
+                ? `Based on ${summary.drawCount} past draws${summary.officialDraws ? `, ${summary.officialDraws} checked against the official PDF` : ""}. Endings that appeared more often are weighted higher; the two-digit prefix is random.`
                 : "Six-digit random ideas using your selected filters."}
             </T>
             <View style={s.row}>
