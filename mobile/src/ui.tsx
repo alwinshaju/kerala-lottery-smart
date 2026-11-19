@@ -59,10 +59,19 @@ export const icons = {
   help: require("../assets/figma/0179b.svg"),
 };
 export type IconName = keyof typeof icons;
-export function Icon({ name, size = 22 }: { name: IconName; size?: number }) {
+export function Icon({
+  name,
+  size = 22,
+  color,
+}: {
+  name: IconName;
+  size?: number;
+  color?: string;
+}) {
   return (
     <Image
       source={icons[name]}
+      tintColor={color}
       style={{ width: size, height: size }}
       contentFit="contain"
     />
@@ -143,7 +152,7 @@ export function Button({
         colors={secondary ? ["#FFFFFF", "#EEE7FA"] : ["#EC8253", "#CB4B24"]}
         style={s.button}
       >
-        {icon && <Icon name={icon} />}
+        {icon && <Icon name={icon} color={secondary ? C.purple : undefined} />}
         <T
           weight="bold"
           style={{ color: secondary ? C.purple : "white", fontSize: 16 }}
