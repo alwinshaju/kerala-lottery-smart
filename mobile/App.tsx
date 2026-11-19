@@ -1,4 +1,3 @@
-import { Portal } from "./src/PortalScreen";
 import React, { useEffect, useRef, useState } from "react";
 import { pingUsage } from "./src/usage";
 import {
@@ -32,7 +31,6 @@ import {
   Results,
   Detail,
   Schedule,
-  OfficialResults,
 } from "./src/ResultsScreens";
 import { Check, Tickets } from "./src/TicketScreens";
 import { Picks, Insights, History, Sum, Stall } from "./src/ToolScreens";
@@ -78,16 +76,6 @@ const titles: Record<Screen, [string, string, string]> = {
   ],
   alerts: ["Result alerts", "Follow only what matters to you.", "ഫല അറിയിപ്പുകൾ"],
   sum: ["Quick sum check", "Understand your ticket number.", "അക്കങ്ങളുടെ തുക"],
-  portal: [
-    "Official website",
-    "Download your result PDF.",
-    "ഔദ്യോഗിക വെബ്സൈറ്റ്",
-  ],
-  official: [
-    "Official PDFs",
-    "Straight from Kerala State Lotteries.",
-    "ഔദ്യോഗിക ഫലം PDF",
-  ],
 };
 export default function App() {
   const [fonts, error] = useFonts({
@@ -220,12 +208,6 @@ function Root() {
       break;
     case "sum":
       content = <Sum {...props} />;
-      break;
-    case "portal":
-      content = <Portal {...props} />;
-      break;
-    case "official":
-      content = <OfficialResults {...props} />;
       break;
   }
   return (

@@ -43,12 +43,6 @@ export function More({ go }: ScreenProps) {
               screen: "insights",
             },
             {
-              title: "Official result PDFs",
-              body: "Download from Kerala State Lotteries",
-              icon: "file",
-              screen: "official",
-            },
-            {
               title: "Number history",
               body: "Look up a four-digit ending",
               icon: "history",
