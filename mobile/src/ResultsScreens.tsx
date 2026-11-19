@@ -72,7 +72,7 @@ export function ResultTile({
     >
       <LinearGradient
         colors={["#7A58D6", "#5233B0"]}
-        style={{ height: 84, justifyContent: "center", paddingHorizontal: 10, paddingTop: 14 }}
+        style={{ height: 84, justifyContent: "center", paddingHorizontal: 16, paddingTop: 14 }}
       >
         <View
           style={{
@@ -92,7 +92,8 @@ export function ResultTile({
         <T
           weight="semi"
           numberOfLines={2}
-          style={{ color: "white", fontSize: 16, textAlign: "center", textTransform: "uppercase" }}
+          adjustsFontSizeToFit
+          style={{ color: "white", fontSize: 15, textAlign: "center", textTransform: "uppercase" }}
         >
           {draw.name}
         </T>
