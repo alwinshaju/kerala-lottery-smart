@@ -37,6 +37,93 @@ export function openURL(url: string) {
     Alert.alert("Unable to open", "Please try again."),
   );
 }
+/** Compact result tile: lottery name on a purple header, draw code at the top right,
+ * date underneath, and a NEW ribbon for results from the last two days. */
+export function ResultTile({
+  draw,
+  isNew,
+  onPress,
+}: {
+  draw: Draw;
+  isNew: boolean;
+  onPress: () => void;
+}) {
+  const code = /^[A-Za-z]+-\d+/.test(draw.drawNo)
+    ? draw.drawNo
+    : `${draw.code}-${draw.drawNo}`;
+  const [y, m, d] = draw.date.split("-");
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${draw.name} ${code} ${draw.date}`}
+      style={({ pressed }) => ({
+        width: "48.5%",
+        borderRadius: 14,
+        overflow: "hidden",
+        backgroundColor: "white",
+        opacity: pressed ? 0.85 : 1,
+        shadowColor: "#2B1A6A",
+        shadowOpacity: 0.12,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 3 },
+        elevation: 3,
+      })}
+    >
+      <LinearGradient
+        colors={["#7A58D6", "#5233B0"]}
+        style={{ height: 84, justifyContent: "center", paddingHorizontal: 16, paddingTop: 14 }}
+      >
+        <View
+          style={{
+            position: "absolute",
+            top: 0,
+            right: 0,
+            backgroundColor: "#EAE2FB",
+            borderBottomLeftRadius: 10,
+            paddingHorizontal: 10,
+            paddingVertical: 3,
+          }}
+        >
+          <T weight="bold" style={{ color: C.purple, fontSize: 12 }}>
+            {code}
+          </T>
+        </View>
+        <T
+          weight="semi"
+          numberOfLines={2}
+          adjustsFontSizeToFit
+          style={{ color: "white", fontSize: 15, textAlign: "center", textTransform: "uppercase" }}
+        >
+          {draw.name}
+        </T>
+        {isNew && (
+          <View
+            style={{
+              position: "absolute",
+              top: 10,
+              left: -26,
+              width: 90,
+              backgroundColor: C.orange,
+              transform: [{ rotate: "-45deg" }],
+              alignItems: "center",
+              paddingVertical: 1,
+            }}
+          >
+            <T weight="bold" style={{ color: "white", fontSize: 10 }}>
+              NEW
+            </T>
+          </View>
+        )}
+      </LinearGradient>
+      <View style={{ paddingVertical: 10, alignItems: "center" }}>
+        <T weight="semi" style={{ fontSize: 15, fontVariant: ["tabular-nums"] }}>
+          {d}/{m}/{y}
+        </T>
+      </View>
+    </Pressable>
+  );
+}
 export function DrawCard({
   draw,
   onPress,
@@ -118,11 +205,12 @@ export function DrawCard({
 export function Home({ go }: ScreenProps) {
   const { draws, preferences } = useApp();
   const ml = preferences.language === "ml";
-  const [filter, setFilter] = useState("Today");
+  const [filter, setFilter] = useState("Latest");
   const today = isoDate(nowIST());
-  const list = draws.filter((d) =>
-    filter === "Today" ? d.date === today : d.date < today,
-  );
+  const list = draws.filter((d) => (filter === "Today" ? d.date === today : true));
+  const recentDate = nowIST();
+  recentDate.setDate(recentDate.getDate() - 1);
+  const recent = isoDate(recentDate);
   const t = nowIST();
   if (t.getHours() >= 15) t.setDate(t.getDate() + 1);
   const next = lotteryForWeekday(t.getDay());
@@ -203,19 +291,22 @@ export function Home({ go }: ScreenProps) {
         onPress={() => go({ screen: "results" })}
       />
       <Tabs
-        items={["Today", "Previous draws", "Schedule"]}
+        items={["Latest", "Today", "Schedule"]}
         value={filter}
         onChange={(v) =>
           v === "Schedule" ? go({ screen: "schedule" }) : setFilter(v)
         }
       />
-      {list.slice(0, 1).map((d) => (
-        <DrawCard
-          key={d.id}
-          draw={d}
-          onPress={() => go({ screen: "detail", drawId: d.id })}
-        />
-      ))}
+      <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", rowGap: 12 }}>
+        {list.slice(0, 12).map((d) => (
+          <ResultTile
+            key={d.id}
+            draw={d}
+            isNew={d.date >= recent}
+            onPress={() => go({ screen: "detail", drawId: d.id })}
+          />
+        ))}
+      </View>
       {!list.length && (
         <Card>
           <T weight="bold">
